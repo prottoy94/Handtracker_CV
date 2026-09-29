@@ -6,14 +6,15 @@ class HandTracker:
     def __init__(self, camera_index=0, max_hands=1, detection_confidence=0.7, tracking_confidence=0.7):
         self.camera = cv2.VideoCapture(camera_index)
 
-        self.mp_hands = mp.solutions.hands
-        self.mp_drawing = mp.solutions.drawing_utils
+        # Initialize the MediaPipe Hands solution and drawing utilities
+        self.mp_hands = mp.solutions.hands # Initialize the MediaPipe Hands solution
+        self.mp_drawing = mp.solutions.drawing_utils # Initialize the MediaPipe drawing utilities
 
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
             max_num_hands=max_hands,
             min_detection_confidence=detection_confidence,
-            min_tracking_confidence=tracking_confidence,
+            min_tracking_confidence=tracking_confidence, # Set the minimum tracking confidence for hand tracking
         )
 
         self.latest_hand = None
@@ -32,7 +33,7 @@ class HandTracker:
 
     def find_landmarks(self, frame):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.hands.process(rgb_frame)
+        results = self.hands.process(rgb_frame) # Process the RGB frame to detect hands and extract landmarks
 
         if results.multi_hand_landmarks is None:
             self.latest_hand = None

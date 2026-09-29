@@ -37,7 +37,7 @@ def main():
             2,
         )
 
-        cv2.imshow("Gesture Controller", frame)
+        cv2.imshow("Gesture Controller", frame) #This line displays the video frame with the hand landmarks and status text in a window titled "Gesture Controller".
 
         pressed_key = cv2.waitKey(1)
         if pressed_key == ord("q"):

@@ -1,0 +1,49 @@
+HAND-GESTURE CONTROLLER: PROJECT ARCHITECTURE
+==============================================
+
+gesture-controller/
+|-- requirements.txt          Python packages needed by the project
+|-- README.md                 Project description and usage instructions
+|-- config.py                 Settings: thresholds, hold frames, cooldown, gesture-to-action map
+|-- main.py                   Runs the live loop and connects all modules              [PROVIDED]
+|-- data/
+|   |-- gestures.csv          Recorded landmark samples used for training
+|-- models/
+|   |-- gesture_clf.joblib    Saved trained classifier
+|-- src/
+    |-- hand_tracker.py       Webcam and MediaPipe wrapper; returns 21 landmarks       [PROVIDED]
+    |-- features.py           Converts landmarks into 42 normalized numbers
+    |-- collect_data.py       Records labeled gesture samples into the CSV file
+    |-- train.py              Trains the SVM/kNN classifier, evaluates it, saves it
+    |-- classifier.py         Loads the model and predicts a gesture (rule-based fallback)
+    |-- smoothing.py          Hold-N-frames and cooldown logic
+    |-- actions.py            Converts a confirmed gesture into a keypress or volume change
+
+
+MODULE RESPONSIBILITIES
+-----------------------
+hand_tracker.py   Input: webcam frame      Output: 21 (x, y) landmarks, or None
+features.py       Input: landmarks         Output: list of 42 normalized floats
+classifier.py     Input: feature vector    Output: gesture label and confidence
+smoothing.py      Input: per-frame label   Output: confirmed gesture, or None
+actions.py        Input: confirmed gesture Output: side effect (keypress or volume change)
+main.py           Input: none              Output: runs the loop and wires everything together
+
+
+BUILD ORDER
+-----------
+1. hand_tracker.py and main.py      (provided: verifies the webcam and hand detection)
+2. features.py
+3. classifier.py (rule-based version first)
+4. smoothing.py
+5. actions.py
+6. collect_data.py and train.py
+7. config.py, requirements.txt, README.md
+
+
+SETUP AND RUN (Windows)
+-----------------------
+python -m venv .venv
+.venv\Scripts\activate
+pip install opencv-python mediapipe==0.10.14
+python main.py
