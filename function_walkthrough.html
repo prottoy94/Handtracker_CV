@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animated Walkthrough: extract_features, GestureClassifier and Debouncer</title>
+<style>
+:root{
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:Consolas,"SFMono-Regular",Menlo,"Liberation Mono","Courier New",monospace;
+  --bg:#eceff3;--surface:#ffffff;--ink:#0f1b2d;--muted:#526074;--rule:#cfd6df;
+  --signal:#c81e58;--blue:#1d4ed8;--teal:#0f766e;
+  --panel:#f8fafc;--grid:#e1e6ed;--axis:#94a0b0;
+  --code-bg:#0e1724;--code-ink:#dbe4f0;--code-dim:#62738a;--code-hl:#1a2a40;
+  --hl-row:rgba(200,30,88,.10);
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0a1220;--surface:#111b2c;--ink:#e8eef7;--muted:#93a2b8;--rule:#24344b;
+    --signal:#ff5d8f;--blue:#7aa2ff;--teal:#2dd4bf;--panel:#0d1726;--grid:#182538;--axis:#4a5b73;
+    --code-bg:#08101b;--code-hl:#15263b;--hl-row:rgba(255,93,143,.14);}
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+header.top{background:var(--surface);border-bottom:1px solid var(--rule);padding:26px 0 0}
+header.top h1{font:400 30px/1.2 var(--serif);margin:0 0 8px;letter-spacing:-.005em}
+header.top p{margin:0 0 18px;color:var(--muted);max-width:780px}
+.tabs{display:flex;gap:2px}
+.tab{font:600 14px var(--sans);color:var(--muted);background:transparent;border:1px solid transparent;border-bottom:none;padding:10px 18px;cursor:pointer;border-radius:4px 4px 0 0}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--bg);border-color:var(--rule);position:relative;top:1px}
+main.wrap{padding-top:20px;padding-bottom:70px}
+.intro h2{font:400 22px/1.3 var(--serif);margin:0 0 6px}
+.intro p{margin:0 0 14px;color:var(--muted);max-width:820px}
+.toolbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg);padding:10px 0;margin-bottom:12px;border-bottom:1px solid var(--rule)}
+button,select{font:600 13px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:7px 14px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--ink)}
+button:disabled{opacity:.4;cursor:default}
+button.primary{background:var(--ink);color:var(--surface);border-color:var(--ink);min-width:78px}
+button:focus-visible,select:focus-visible,input:focus-visible,.handle:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.spd{font:600 13px var(--sans);color:var(--muted);display:flex;align-items:center;gap:6px}
+.spd select{padding:6px 8px}
+.toolbar input[type=range]{flex:1 1 180px;min-width:140px;accent-color:var(--signal)}
+.count{font:600 13px var(--sans);color:var(--muted);min-width:96px;text-align:right}
+.grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:14px;align-items:start}
+@media (max-width:1020px){.grid2{grid-template-columns:1fr}}
+.stack>*+*{margin-top:14px}
+.box{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:14px 16px}
+.box h3{font:600 14px var(--sans);margin:0 0 10px;color:var(--ink)}
+.box.figure{padding:12px 12px 10px}
+.box.figure figcaption{color:var(--muted);font-size:13px;margin-top:6px}
+.box.now{border-left:4px solid var(--signal)}
+.box.now h3{font:400 18px/1.3 var(--serif)}
+.box.now p{margin:0}
+code{font:13px var(--mono);background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:0 4px}
+.code{background:var(--code-bg);color:var(--code-ink);border-radius:4px;font:13px/1.7 var(--mono);overflow:auto;max-height:440px;position:relative;padding:8px 0}
+.code.short{max-height:none}
+.code .ln{display:flex;white-space:pre;border-left:3px solid transparent;padding-right:14px;min-width:max-content}
+.code .no{flex:0 0 38px;text-align:right;padding-right:12px;color:var(--code-dim);user-select:none}
+.code .ln.hl{background:var(--code-hl);border-left-color:var(--signal)}
+.code .ln.skip{opacity:.35}
+.tk{color:#c4b5fd}.ts{color:#86efac}.tn{color:#fcd34d}.tc{color:#62738a;font-style:italic}
+pre.calc{margin:0;background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--blue);border-radius:4px;padding:10px 12px;font:12.5px/1.7 var(--mono);white-space:pre-wrap;overflow-x:auto;min-height:5.5em}
+.hi{color:var(--signal);font-weight:700}
+svg{display:block;width:100%;height:auto}
+svg text{font-family:var(--sans)}
+.pl{fill:var(--panel);stroke:var(--rule)}
+.gr{stroke:var(--grid);stroke-width:1}
+.ax{stroke:var(--axis);stroke-width:1.3}
+.ptitle{font-size:12.5px;font-weight:600;fill:var(--ink)}
+.psub{font-size:10px;fill:var(--muted)}
+.tick{font-size:9px;fill:var(--muted)}
+.idx{font-size:8.5px;fill:var(--muted)}
+.cap{font-size:9.5px;fill:var(--ink);font-weight:600}
+.halo{paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
+.bone{stroke-width:2;stroke-linecap:round;opacity:.8}
+.ghost{stroke:var(--axis);stroke-width:1.4;stroke-dasharray:3 3;fill:none;opacity:.8}
+.pt{stroke:var(--panel);stroke-width:1.2}
+.vec{stroke:var(--signal);stroke-width:2.2;fill:none;stroke-linecap:round}
+.vec.thin{stroke-width:1.4;stroke-dasharray:5 4;opacity:.8}
+.legx{stroke:var(--blue);stroke-width:1.6;stroke-dasharray:4 3}
+.legy{stroke:var(--teal);stroke-width:1.6;stroke-dasharray:4 3}
+.ring{fill:none;stroke:var(--signal);stroke-width:2}
+.ring.dim{opacity:.45;stroke-width:1.5}
+.gut{fill:var(--axis)}
+.zone{fill-opacity:.08;stroke-width:1.6;stroke-dasharray:6 4}
+.zone-yes{fill:var(--teal);stroke:var(--teal)}
+.zone-no{fill:var(--muted);stroke:var(--muted)}
+.mline{stroke-width:2.2;stroke-linecap:round;fill:none}
+.mline.a{stroke:var(--blue)}
+.mline.b{stroke:var(--teal)}
+.handle{fill:rgba(200,30,88,.08);stroke:var(--signal);stroke-width:1.6;stroke-dasharray:3 2;cursor:grab;touch-action:none}
+.handle:active{cursor:grabbing}
+.fly{stroke:var(--surface);stroke-width:1.5}
+.newpt{transform-box:fill-box;transform-origin:center;animation:pop .35s ease-out both;animation-delay:var(--fly,500ms)}
+.fadein{animation:fadein .3s ease-out both;animation-delay:var(--fly,500ms)}
+.appear{animation:fadein .3s ease-out both}
+.pulse{transform-box:fill-box;transform-origin:center;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pop{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:scale(1)}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.28);opacity:.55}}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px}
+.legend span{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.tbl-wrap{max-height:400px;overflow:auto;border:1px solid var(--rule);border-radius:4px}
+table.data{border-collapse:collapse;width:100%;font:12.5px/1.4 var(--mono)}
+table.data th{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--rule);padding:7px 10px;text-align:right;font:600 12px var(--sans);color:var(--muted)}
+table.data td{padding:4px 10px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+table.data th.l,table.data td.l{text-align:left}
+table.data tr.cur td{background:var(--hl-row)}
+table.data tr.used td.l{font-weight:700}
+table.data td.dim{color:var(--axis)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;flex-direction:column;align-items:center;min-width:62px;border:1px solid var(--rule);border-radius:4px;padding:2px 6px;background:var(--panel);font:12px/1.3 var(--mono)}
+.chip i{font:normal 10.5px var(--sans);color:var(--muted)}
+.chip b{font-weight:400;min-height:1.3em}
+.chip.on{border-color:var(--ink)}
+.chip.fresh{border-color:var(--signal);background:var(--hl-row)}
+.note{color:var(--muted);font-size:13.5px;margin:8px 0 0}
+.lab h3{margin-bottom:4px}
+.lab .sub{color:var(--muted);margin:0 0 12px;max-width:760px}
+.lab-grid{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:18px;align-items:start}
+@media (max-width:1020px){.lab-grid{grid-template-columns:1fr}}
+.sliders{display:grid;gap:10px;margin-bottom:12px}
+.sl{display:grid;grid-template-columns:190px 1fr 64px;align-items:center;gap:10px;font-size:13.5px}
+.sl output{font:12.5px var(--mono);text-align:right;color:var(--muted)}
+.sl input{accent-color:var(--signal);width:100%}
+@media (max-width:560px){.sl{grid-template-columns:1fr 64px}.sl label{grid-column:1/-1}}
+.ok{color:var(--teal);font-weight:700}
+.bad{color:var(--signal);font-weight:700}
+.p2-side{display:grid;gap:14px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.presets span{font-size:13px;color:var(--muted);font-weight:600}
+button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.thr{display:grid;gap:8px;margin-top:10px}
+.gauge{margin-top:10px}
+.gauge-head{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.gauge-head b{font-family:var(--mono);font-weight:600}
+.bar{position:relative;height:14px;background:var(--panel);border:1px solid var(--rule);border-radius:3px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--blue);opacity:.75;border-radius:2px;transition:width .3s}
+.bar .fill.g{background:var(--teal)}
+.bar .mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--signal)}
+.gauge-foot{font-size:12px;color:var(--muted);margin-top:3px}
+.result{border:1px solid var(--rule);border-radius:4px;padding:12px 14px;background:var(--panel)}
+.result small{display:block;color:var(--muted);font-size:12px}
+.result strong{font:600 22px var(--mono)}
+.result.r-pinch{border-color:var(--teal)}.result.r-open{border-color:var(--blue)}.result.r-idle{border-color:var(--axis)}
+.foot{color:var(--muted);font-size:13px;margin-top:22px;max-width:860px}
+.l-pinch{fill:var(--teal)}.l-open{fill:var(--blue)}.l-idle{fill:var(--axis)}
+.cnt{fill:var(--panel);stroke:var(--rule)}.lockband{fill:var(--axis);opacity:.45}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>How extract_features, GestureClassifier and Debouncer Work</h1>
+    <p>An animated, line-by-line walkthrough of the functions. Every number on this page is calculated live in your browser using the same formulas as your Python code, so you can follow each calculation with a pencil.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-part1" data-tab="part1" aria-selected="true" aria-controls="part1">Part 1: extract_features</button>
+      <button class="tab" role="tab" id="tab-part2" data-tab="part2" aria-selected="false" aria-controls="part2">Part 2: GestureClassifier.predict</button>
+      <button class="tab" role="tab" id="tab-part3" data-tab="part3" aria-selected="false" aria-controls="part3">Part 3: Debouncer.update</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ===================== PART 1 ===================== -->
+<section id="part1" role="tabpanel" aria-labelledby="tab-part1">
+  <div class="intro">
+    <h2>Part 1: from 21 landmarks to 42 comparable numbers</h2>
+    <p>The same hand gesture can appear at different places and sizes in the camera image. The function removes the <b>position</b> (by measuring from the wrist) and then the <b>size</b> (by dividing by the palm length). Press <b>Play</b>, or step with <b>Next</b> and <b>Previous</b> (the arrow keys also work). The hand shown is a synthetic example, not a webcam recording.</p>
+  </div>
+
+  <div class="toolbar">
+    <button id="p1-reset" type="button">Reset</button>
+    <button id="p1-prev" type="button">Previous</button>
+    <button id="p1-play" type="button" class="primary">Play</button>
+    <button id="p1-next" type="button">Next</button>
+    <label class="spd">Speed
+      <select id="p1-speed"><option value="1700">Slow</option><option value="1000" selected>Normal</option><option value="380">Fast</option></select>
+    </label>
+    <input id="p1-scrub" type="range" min="0" max="49" value="0" aria-label="Jump to a step">
+    <span id="p1-count" class="count">Step 1 of 50</span>
+  </div>
+
+  <div class="grid2">
+    <div class="stack">
+      <div class="box">
+        <h3>extract_features(landmark_list)</h3>
+        <div id="code1" class="code" tabindex="0" aria-label="Source code of extract_features"></div>
+      </div>
+      <div class="box">
+        <h3>calculate_distance (called on line 11)</h3>
+        <div id="help1" class="code short" aria-label="Source code of calculate_distance"></div>
+      </div>
+    </div>
+    <div class="stack">
+      <figure class="box figure" style="margin:0">
+        <svg id="svg1" viewBox="0 0 768 288" role="img" aria-label="Three coordinate views of the same hand: raw, relative to the wrist, and normalized"></svg>
+        <figcaption>
+          The same hand in three coordinate systems. Small numbers are MediaPipe landmark indices. Image y-values grow downward, so points above the wrist have negative y in (b) and (c).
+          <div class="legend"><span><i style="background:#3b82f6"></i>thumb</span><span><i style="background:#10b981"></i>index</span><span><i style="background:#f59e0b"></i>middle</span><span><i style="background:#8b5cf6"></i>ring</span><span><i style="background:#ec4899"></i>pinky</span><span><i style="background:#64748b"></i>wrist</span></div>
+        </figcaption>
+      </figure>
+      <div class="box now"><h3 id="title1"></h3><p id="desc1" aria-live="polite"></p></div>
+      <div class="box"><h3>Calculation for this step</h3><pre id="calc1" class="calc"></pre></div>
+    </div>
+  </div>
+
+  <div class="box" style="margin-top:14px">
+    <h3>Data table: what the function holds in memory</h3>
+    <div class="tbl-wrap">
+      <table class="data">
+        <thead><tr><th>#</th><th class="l">Landmark</th><th>Raw x</th><th>Raw y</th><th>Relative x</th><th>Relative y</th><th>Normalized x</th><th>Normalized y</th></tr></thead>
+        <tbody id="tbody1"></tbody>
+      </table>
+    </div>
+    <p class="note">The row being processed is shaded. Raw values come from MediaPipe; the other columns fill in as the two loops run.</p>
+  </div>
+
+  <div class="box" style="margin-top:14px">
+    <h3>feature_list: x and y of every landmark, one after another (42 values)</h3>
+    <div id="chips1" class="chips"></div>
+    <p class="note">Two values are appended per landmark, so landmark n occupies positions 2n (x) and 2n + 1 (y). The classifier in Part 2 reads these positions.</p>
+  </div>
+
+  <div class="box lab" style="margin-top:14px">
+    <h3>Try it: does the shape survive a change of size and position?</h3>
+    <p class="sub">Move the sliders. The dashed outline is the original hand. If the function works as intended, the normalized hand in the right panel stays on top of the dashed outline when only the size or the position changes.</p>
+    <div class="lab-grid">
+      <div>
+        <div class="sliders">
+          <div class="sl"><label for="lab-size">Hand size (distance from camera)</label><input id="lab-size" type="range" min="0.5" max="1.25" step="0.05" value="1"><output id="lab-size-v"></output></div>
+          <div class="sl"><label for="lab-dx">Move hand left / right</label><input id="lab-dx" type="range" min="-0.15" max="0.15" step="0.01" value="0"><output id="lab-dx-v"></output></div>
+          <div class="sl"><label for="lab-dy">Move hand up / down</label><input id="lab-dy" type="range" min="-0.08" max="0.08" step="0.01" value="0"><output id="lab-dy-v"></output></div>
+          <div class="sl"><label for="lab-rot">Rotate hand (not removed)</label><input id="lab-rot" type="range" min="-40" max="40" step="1" value="0"><output id="lab-rot-v"></output></div>
+        </div>
+        <button id="lab-reset" type="button">Reset sliders</button>
+        <p id="lab-note" class="note" aria-live="polite"></p>
+      </div>
+      <div>
+        <svg id="svgLab" viewBox="0 0 536 288" role="img" aria-label="Left: hand in the camera image. Right: the normalized hand compared with the original"></svg>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:12px;max-height:none">
+      <table class="data">
+        <thead><tr><th class="l">Quantity</th><th>Original</th><th>Now</th><th class="l">Result</th></tr></thead>
+        <tbody id="tbodyLab"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PART 2 ===================== -->
+<section id="part2" role="tabpanel" aria-labelledby="tab-part2" hidden>
+  <div class="intro">
+    <h2>Part 2: from 42 numbers to a gesture label</h2>
+    <p>The classifier is a set of hand-written rules. It compares two distances against two thresholds: the gap between the thumb tip and the index tip (a pinch is a small gap), and the distance from the wrist to the middle fingertip (an open hand has a long reach). You can step through <code>predict</code>, choose an example hand, <b>drag the three circled fingertips</b>, and change the thresholds to see when the decision flips.</p>
+  </div>
+
+  <div class="toolbar">
+    <button id="p2-reset" type="button">Reset</button>
+    <button id="p2-prev" type="button">Previous</button>
+    <button id="p2-play" type="button" class="primary">Play</button>
+    <button id="p2-next" type="button">Next</button>
+    <label class="spd">Speed
+      <select id="p2-speed"><option value="1900">Slow</option><option value="1200" selected>Normal</option><option value="450">Fast</option></select>
+    </label>
+    <input id="p2-scrub" type="range" min="0" max="10" value="0" aria-label="Jump to a step">
+    <span id="p2-count" class="count">Step 1 of 11</span>
+  </div>
+
+  <div class="grid2">
+    <div class="stack">
+      <div class="box">
+        <h3>GestureClassifier</h3>
+        <div id="code2" class="code" tabindex="0" aria-label="Source code of GestureClassifier"></div>
+      </div>
+      <div class="box">
+        <h3>get_point and its constants</h3>
+        <div id="help2a" class="code short" aria-label="Source code of get_point"></div>
+      </div>
+      <div class="box">
+        <h3>calculate_distance</h3>
+        <div id="help2b" class="code short" aria-label="Source code of calculate_distance"></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="box">
+        <div class="presets" role="group" aria-label="Example hands">
+          <span>Example hand:</span>
+          <button type="button" class="preset" data-preset="open" aria-pressed="true">Open hand</button>
+          <button type="button" class="preset" data-preset="pinch" aria-pressed="false">Pinch</button>
+          <button type="button" class="preset" data-preset="idle" aria-pressed="false">Half-closed hand</button>
+        </div>
+        <svg id="svg2" viewBox="0 0 440 440" role="img" aria-label="Normalized hand with the pinch zone and the open zone. Three fingertips can be dragged."></svg>
+        <p id="zonecap" class="note"></p>
+        <div class="thr">
+          <div class="sl"><label for="thr-pinch">pinch_distance_threshold</label><input id="thr-pinch" type="range" min="0.05" max="1" step="0.05" value="0.4"><output id="thr-pinch-v"></output></div>
+          <div class="sl"><label for="thr-open">open_distance_threshold</label><input id="thr-open" type="range" min="0.5" max="2.5" step="0.05" value="1.3"><output id="thr-open-v"></output></div>
+        </div>
+      </div>
+      <div class="box now"><h3 id="title2"></h3><p id="desc2" aria-live="polite"></p></div>
+      <div class="box"><h3>Calculation for this step</h3><pre id="calc2" class="calc"></pre></div>
+      <div class="p2-side">
+        <div class="box">
+          <h3>Measurements against their thresholds</h3>
+          <div class="gauge">
+            <div class="gauge-head"><span>pinch_distance</span><b id="g1-val">not computed yet</b></div>
+            <div class="bar"><div class="fill" id="g1-fill" style="width:0"></div><div class="mark" id="g1-mark"></div></div>
+            <div class="gauge-foot">Red marker: threshold. A pinch is reported when the bar ends <b>before</b> the marker.</div>
+          </div>
+          <div class="gauge">
+            <div class="gauge-head"><span>middle_finger_length</span><b id="g2-val">not computed yet</b></div>
+            <div class="bar"><div class="fill g" id="g2-fill" style="width:0"></div><div class="mark" id="g2-mark"></div></div>
+            <div class="gauge-foot">Red marker: threshold. Open is reported when the bar ends <b>beyond</b> the marker.</div>
+          </div>
+        </div>
+        <div class="result" id="result2"><small>Value returned by predict</small><strong>not returned yet</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box" style="margin-top:14px">
+    <h3>feature_list as get_point sees it</h3>
+    <div class="tbl-wrap">
+      <table class="data">
+        <thead><tr><th>#</th><th class="l">Landmark</th><th>x position</th><th>x value</th><th>y position</th><th>y value</th></tr></thead>
+        <tbody id="tbody2"></tbody>
+      </table>
+    </div>
+    <p class="note">Bold names are the landmarks that <code>predict</code> reads. The values are the normalized features from Part 1, so a wrist is always (0, 0) and the middle-finger base is always one unit above it.</p>
+  </div>
+</section>
+
+<!-- ===================== PART 3 ===================== -->
+<section id="part3" role="tabpanel" aria-labelledby="tab-part3" hidden>
+  <div class="intro">
+    <h2>Part 3: from a shaky label to one confirmed gesture</h2>
+    <p>The camera sends about 30 pictures (<b>frames</b>) per second, and Part 2 labels every one of them. A real hand wobbles, so the labels can flicker: <i>pinch, pinch, open, pinch</i>. If every label triggered an action, the computer would react wildly. The <b>Debouncer</b> adds two safety rules. <b>Hold:</b> the same gesture must appear in a row for <code>hold_frames</code> frames. <b>Cooldown:</b> after one gesture is confirmed, everything is ignored for <code>cooldown_seconds</code>. In the finished program each frame will flow through <code>extract_features</code>, then <code>predict</code>, then <code>update</code>. Here, the labels below are a scripted example, and time is simulated at 30 frames per second.</p>
+  </div>
+  <div class="toolbar">
+    <button id="p3-reset" type="button">Reset</button>
+    <button id="p3-prev" type="button">Previous</button>
+    <button id="p3-play" type="button" class="primary">Play</button>
+    <button id="p3-next" type="button">Next</button>
+    <label class="spd">Speed
+      <select id="p3-speed"><option value="600">Slow</option><option value="280" selected>Normal</option><option value="110">Fast</option></select>
+    </label>
+    <input id="p3-scrub" type="range" min="0" max="79" value="0" aria-label="Jump to a frame">
+    <span id="p3-count" class="count">Step 1 of 80</span>
+  </div>
+  <div class="grid2">
+    <div class="stack">
+      <div class="box">
+        <h3>Debouncer (smoothing.py)</h3>
+        <div id="code3" class="code" tabindex="0" aria-label="Source code of Debouncer"></div>
+      </div>
+    </div>
+    <div class="stack">
+      <figure class="box figure" style="margin:0">
+        <svg id="svg3" viewBox="0 0 768 250" role="img" aria-label="Timeline of classifier labels, cooldown lock, confirmed actions, frame counter and cooldown remaining"></svg>
+        <figcaption>One step is one camera frame. <span id="fired3"></span>
+          <div class="legend"><span><i style="background:var(--teal)"></i>pinch</span><span><i style="background:var(--blue)"></i>open</span><span><i style="background:var(--axis)"></i>idle</span></div>
+        </figcaption>
+      </figure>
+      <div class="box now"><h3 id="title3"></h3><p id="desc3" aria-live="polite"></p></div>
+      <div class="box"><h3>Calculation for this frame</h3><pre id="calc3" class="calc"></pre></div>
+    </div>
+  </div>
+  <div class="box lab" style="margin-top:14px">
+    <h3>Try it: change the two settings</h3>
+    <p class="sub">A larger <code>hold_frames</code> needs a longer, steadier gesture. A longer cooldown leaves more frames ignored (grey band). Notice how the flickers at frames 10 to 13 never reach the hold count.</p>
+    <div class="thr">
+      <div class="sl"><label for="thr3-hold">hold_frames</label><input id="thr3-hold" type="range" min="2" max="12" step="1" value="8"><output id="thr3-hold-v"></output></div>
+      <div class="sl"><label for="thr3-cool">cooldown_seconds</label><input id="thr3-cool" type="range" min="0.5" max="2.5" step="0.1" value="1.5"><output id="thr3-cool-v"></output></div>
+    </div>
+  </div>
+</section>
+
+<p class="foot">The hands on this page are hand-made example data, so the exact distances differ from those of a real webcam frame. The thresholds 0.4 and 1.3 are starting values that should be tuned with live measurements from your own camera.</p>
+</main>
+
+<script>
+(function () {
+'use strict';
+
+var NS = 'http://www.w3.org/2000/svg';
+function $(id) { return document.getElementById(id); }
+var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/* ============================================================
+   Shared data and maths (mirrors the Python code)
+   ============================================================ */
+var NAMES = ['WRIST','THUMB_CMC','THUMB_MCP','THUMB_IP','THUMB_TIP','INDEX_MCP','INDEX_PIP','INDEX_DIP','INDEX_TIP','MIDDLE_MCP','MIDDLE_PIP','MIDDLE_DIP','MIDDLE_TIP','RING_MCP','RING_PIP','RING_DIP','RING_TIP','PINKY_MCP','PINKY_PIP','PINKY_DIP','PINKY_TIP'];
+var LINKS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+var COLORS = { palm: '#64748b', thumb: '#3b82f6', index: '#10b981', middle: '#f59e0b', ring: '#8b5cf6', pinky: '#ec4899' };
+function finger(i) { if (i === 0) return 'palm'; if (i <= 4) return 'thumb'; if (i <= 8) return 'index'; if (i <= 12) return 'middle'; if (i <= 16) return 'ring'; return 'pinky'; }
+
+function round4(v) { return Math.round(v * 10000) / 10000; }
+function fmt(v, d) { if (d === undefined) d = 4; var s = v.toFixed(d); if (/^-0(\.0*)?$/.test(s)) s = s.slice(1); return s; }
+function par(v, d) { var s = fmt(v, d); return s.charAt(0) === '-' ? '(' + s + ')' : s; }
+function pair(p, d) { return '(' + fmt(p[0], d) + ', ' + fmt(p[1], d) + ')'; }
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function hi(t) { return '<span class="hi">' + esc(t) + '</span>'; }
+function dist(a, b) { var dx = a[0] - b[0], dy = a[1] - b[1]; return Math.sqrt(dx * dx + dy * dy); }
+
+function extractFeatures(list) {
+  var wrist = list[0], rel = [], norm = [], feats = [], i, scale;
+  for (i = 0; i < list.length; i++) { rel.push([list[i][0] - wrist[0], list[i][1] - wrist[1]]); }
+  scale = dist(rel[0], rel[9]);
+  if (scale === 0) { scale = 0.0001; }
+  for (i = 0; i < rel.length; i++) {
+    norm.push([rel[i][0] / scale, rel[i][1] / scale]);
+    feats.push(rel[i][0] / scale);
+    feats.push(rel[i][1] / scale);
+  }
+  return { rel: rel, scale: scale, norm: norm, features: feats };
+}
+
+/* Example hands are written in "palm lengths" (x to the right, y upward), then placed in the image. */
+var OPEN_LOCAL = [
+  [0,0],
+  [-0.35,0.25],[-0.65,0.55],[-0.90,0.85],[-1.10,1.12],
+  [-0.38,0.97],[-0.48,1.42],[-0.52,1.72],[-0.55,1.98],
+  [0,1.0],[0,1.52],[0,1.85],[0,2.10],
+  [0.36,0.95],[0.42,1.42],[0.45,1.72],[0.48,1.97],
+  [0.68,0.85],[0.82,1.20],[0.90,1.42],[0.96,1.62]
+];
+function cloneLocal(base, edits) {
+  var c = base.map(function (p) { return p.slice(); });
+  edits.forEach(function (e) { c[e[0]] = [e[1], e[2]]; });
+  return c;
+}
+var PINCH_LOCAL = cloneLocal(OPEN_LOCAL, [[2,-0.62,0.58],[3,-0.72,0.95],[4,-0.62,1.30],[6,-0.50,1.38],[7,-0.62,1.52],[8,-0.57,1.26]]);
+var IDLE_LOCAL = cloneLocal(OPEN_LOCAL, [[6,-0.42,1.30],[7,-0.30,1.15],[8,-0.22,0.95],[10,0,1.38],[11,0.02,1.15],[12,0.03,0.88],[14,0.40,1.30],[15,0.36,1.10],[16,0.32,0.90],[18,0.78,1.12],[19,0.70,0.98],[20,0.62,0.82]]);
+var WX = 0.5, WY = 0.85, SC = 0.26;
+function localToRaw(local) { return local.map(function (p) { return [round4(WX + p[0] * SC), round4(WY - p[1] * SC)]; }); }
+var RAW1 = localToRaw(OPEN_LOCAL);
+var D1 = extractFeatures(RAW1);
+
+/* ============================================================
+   Source code shown on the page
+   ============================================================ */
+var CODE1 = [
+'def extract_features(landmark_list):',
+'    wrist_point = landmark_list[0]',
+'    middle_finger_base = landmark_list[9]',
+'',
+'    relative_points = []',
+'    for point in landmark_list:',
+'        relative_x = point[0] - wrist_point[0]',
+'        relative_y = point[1] - wrist_point[1]',
+'        relative_points.append((relative_x, relative_y))',
+'',
+'    scale_distance = calculate_distance(relative_points[0], relative_points[9]) # Calculate the distance between the wrist and the base of the middle finger to use as a scale for normalization',
+'',
+'    if scale_distance == 0:',
+'        scale_distance = 0.0001',
+'',
+'    feature_list = []',
+'    for point in relative_points:',
+'        normalized_x = point[0] / scale_distance',
+'        normalized_y = point[1] / scale_distance',
+'        feature_list.append(normalized_x)',
+'        feature_list.append(normalized_y)',
+'',
+'    return feature_list'
+];
+var CODE_DIST = [
+'def calculate_distance(point_a, point_b):',
+'    x_difference = point_a[0] - point_b[0]',
+'    y_difference = point_a[1] - point_b[1]',
+'    distance = (x_difference ** 2 + y_difference ** 2) ** 0.5',
+'    return distance'
+];
+var CODE2 = [
+'class GestureClassifier:',
+'    def __init__(self, pinch_distance_threshold=0.4, open_distance_threshold=1.3):',
+'        self.pinch_distance_threshold = pinch_distance_threshold',
+'        self.open_distance_threshold = open_distance_threshold',
+'',
+'    def predict(self, feature_list):',
+'        wrist_point = get_point(feature_list, WRIST_INDEX)',
+'        thumb_tip_point = get_point(feature_list, THUMB_TIP_INDEX)',
+'        index_tip_point = get_point(feature_list, INDEX_TIP_INDEX)',
+'        middle_tip_point = get_point(feature_list, MIDDLE_TIP_INDEX)',
+'',
+'        pinch_distance = calculate_distance(thumb_tip_point, index_tip_point)',
+'        middle_finger_length = calculate_distance(wrist_point, middle_tip_point)',
+'',
+'        if pinch_distance < self.pinch_distance_threshold:',
+'            gesture_label = "pinch"',
+'            confidence_score = 1.0 - (pinch_distance / self.pinch_distance_threshold)',
+'            return gesture_label, confidence_score',
+'',
+'        if middle_finger_length > self.open_distance_threshold:',
+'            gesture_label = "open"',
+'            confidence_score = min(middle_finger_length / self.open_distance_threshold, 1.0)',
+'            return gesture_label, confidence_score',
+'',
+'        gesture_label = "idle"',
+'        confidence_score = 0.5',
+'        return gesture_label, confidence_score'
+];
+var CODE_GP = [
+'WRIST_INDEX = 0',
+'THUMB_TIP_INDEX = 4',
+'INDEX_TIP_INDEX = 8',
+'MIDDLE_TIP_INDEX = 12',
+'',
+'def get_point(feature_list, landmark_index):',
+'    x_position = landmark_index * 2',
+'    y_position = landmark_index * 2 + 1',
+'    x_value = feature_list[x_position]',
+'    y_value = feature_list[y_position]',
+'    return (x_value, y_value)'
+];
+
+function highlightCode(src) {
+  var e = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return e.replace(/(#.*$)|("[^"]*")|\b(def|class|for|in|if|return|self|None|True|False)\b|\b(\d+\.?\d*)\b/g, function (m, c, s, k, n) {
+    if (c) return '<span class="tc">' + c + '</span>';
+    if (s) return '<span class="ts">' + s + '</span>';
+    if (k) return '<span class="tk">' + k + '</span>';
+    if (n) return '<span class="tn">' + n + '</span>';
+    return m;
+  });
+}
+function CodeView(container, lines) {
+  var self = this;
+  this.el = container; this.rows = [];
+  container.innerHTML = '';
+  lines.forEach(function (t, i) {
+    var row = document.createElement('div');
+    row.className = 'ln';
+    row.innerHTML = '<span class="no">' + (i + 1) + '</span><span class="tx">' + highlightCode(t) + '</span>';
+    container.appendChild(row);
+    self.rows.push(row);
+  });
+}
+CodeView.prototype.set = function (hl, skip, scroll) {
+  var c = this.el;
+  hl = hl || []; skip = skip || [];
+  this.rows.forEach(function (row, i) {
+    var n = i + 1;
+    row.classList.toggle('hl', hl.indexOf(n) >= 0);
+    row.classList.toggle('skip', skip.indexOf(n) >= 0);
+  });
+  if (scroll && hl.length) {
+    var r = this.rows[hl[0] - 1], top = r.offsetTop, bottom = top + r.offsetHeight;
+    if (top < c.scrollTop + 24) { c.scrollTop = Math.max(0, top - 48); }
+    else if (bottom > c.scrollTop + c.clientHeight - 24) { c.scrollTop = bottom - c.clientHeight + 48; }
+  }
+};
+
+/* ============================================================
+   Stepper: play / pause / previous / next / scrubber
+   ============================================================ */
+function makeStepper(prefix, onRender) {
+  var s = { frames: [], index: 0, timer: null, playing: false };
+  var reset = $(prefix + '-reset'), prev = $(prefix + '-prev'), play = $(prefix + '-play'), next = $(prefix + '-next');
+  var speed = $(prefix + '-speed'), scrub = $(prefix + '-scrub'), count = $(prefix + '-count');
+  function delay() { return parseInt(speed.value, 10); }
+  function controls() {
+    var last = s.frames.length - 1;
+    scrub.max = String(last); scrub.value = String(s.index);
+    count.textContent = 'Step ' + (s.index + 1) + ' of ' + s.frames.length;
+    prev.disabled = s.index === 0; reset.disabled = s.index === 0;
+    next.disabled = s.index >= last;
+    play.textContent = s.playing ? 'Pause' : (s.index >= last ? 'Replay' : 'Play');
+  }
+  function paint(animate) { controls(); onRender(s.frames[s.index], s.index, delay(), animate); }
+  function stop() { s.playing = false; if (s.timer) { clearTimeout(s.timer); s.timer = null; } }
+  function go(i, animate) { s.index = Math.max(0, Math.min(s.frames.length - 1, i)); paint(animate); }
+  function tick() {
+    s.timer = null;
+    if (!s.playing) return;
+    s.index += 1;
+    if (s.index >= s.frames.length - 1) { s.index = s.frames.length - 1; s.playing = false; paint(true); return; }
+    paint(true);
+    s.timer = setTimeout(tick, delay());
+  }
+  s.stop = function () { stop(); controls(); };
+  s.next = function () { stop(); go(s.index + 1, true); };
+  s.prev = function () { stop(); go(s.index - 1, false); };
+  s.setFrames = function (frames, mode) {
+    stop(); s.frames = frames;
+    if (mode === 'end') s.index = frames.length - 1;
+    else if (mode === 'start') s.index = 0;
+    else s.index = Math.min(s.index, frames.length - 1);
+    paint(false);
+  };
+  reset.addEventListener('click', function () { stop(); go(0, false); });
+  prev.addEventListener('click', s.prev);
+  next.addEventListener('click', s.next);
+  play.addEventListener('click', function () {
+    if (s.playing) { stop(); controls(); return; }
+    if (s.index >= s.frames.length - 1) { go(0, false); }
+    s.playing = true; controls();
+    s.timer = setTimeout(tick, 350);
+  });
+  scrub.addEventListener('input', function () { stop(); go(parseInt(scrub.value, 10), false); });
+  return s;
+}
+
+/* ============================================================
+   SVG helpers
+   ============================================================ */
+function ln(a, b, cls) { return '<line class="' + cls + '" x1="' + a[0].toFixed(1) + '" y1="' + a[1].toFixed(1) + '" x2="' + b[0].toFixed(1) + '" y2="' + b[1].toFixed(1) + '"/>'; }
+function tx(p, cls, str, anchor) { return '<text class="' + cls + '" x="' + p[0].toFixed(1) + '" y="' + p[1].toFixed(1) + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + str + '</text>'; }
+function ring(p, r, cls) { return '<circle class="' + cls + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + r + '"/>'; }
+function off(p, dx, dy) { return [p[0] + dx, p[1] + dy]; }
+function skeleton(map, pts, n, newIdx) {
+  var s = '';
+  LINKS.forEach(function (l) {
+    var a = l[0], b = l[1];
+    if (a < n && b < n) {
+      var pa = map(pts[a]), pb = map(pts[b]);
+      s += '<line class="bone' + ((a === newIdx || b === newIdx) ? ' fadein' : '') + '" x1="' + pa[0].toFixed(1) + '" y1="' + pa[1].toFixed(1) + '" x2="' + pb[0].toFixed(1) + '" y2="' + pb[1].toFixed(1) + '" stroke="' + COLORS[finger(b)] + '"/>';
+    }
+  });
+  return s;
+}
+function points(map, pts, n, newIdx) {
+  var s = '', i, p;
+  for (i = 0; i < n; i++) {
+    p = map(pts[i]);
+    s += '<circle class="pt' + (i === newIdx ? ' newpt' : '') + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3.8" fill="' + COLORS[finger(i)] + '"/>';
+    s += '<text class="idx halo' + (i === newIdx ? ' newpt' : '') + '" x="' + (p[0] + 5).toFixed(1) + '" y="' + (p[1] - 5).toFixed(1) + '">' + i + '</text>';
+  }
+  return s;
+}
+function triangle(map, from, to, mode, lx, ly) {
+  var a = map(from), b = map(to), c = [b[0], a[1]], dxp = b[0] - a[0], dyp = b[1] - a[1];
+  if (Math.abs(dxp) < 0.5 && Math.abs(dyp) < 0.5) return '';
+  var f = mode === 'late' ? ' fadein' : (mode === 'now' ? ' appear' : '');
+  var s = ln(a, c, 'legx' + f) + ln(c, b, 'legy' + f) + ln(a, b, 'vec' + f);
+  if (Math.abs(dxp) > 24) s += tx([(a[0] + c[0]) / 2, a[1] + (dyp < 0 ? 12 : -5)], 'cap halo' + f, lx, 'middle');
+  if (Math.abs(dyp) > 14) s += tx([c[0] + (dxp < 0 ? -5 : 5), (c[1] + b[1]) / 2 + 3], 'cap halo' + f, ly, dxp < 0 ? 'end' : 'start');
+  return s;
+}
+var flyHandle = null;
+function fly(svg, a, b, color, ms) {
+  if (REDUCED || !window.requestAnimationFrame) return;
+  if (flyHandle) { cancelAnimationFrame(flyHandle); flyHandle = null; }
+  var c = document.createElementNS(NS, 'circle');
+  c.setAttribute('r', '5.5'); c.setAttribute('fill', color); c.setAttribute('class', 'fly');
+  c.setAttribute('cx', a[0]); c.setAttribute('cy', a[1]);
+  svg.appendChild(c);
+  var t0 = null;
+  function step(t) {
+    if (t0 === null) t0 = t;
+    var k = Math.min(1, (t - t0) / ms), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    c.setAttribute('cx', a[0] + (b[0] - a[0]) * e);
+    c.setAttribute('cy', a[1] + (b[1] - a[1]) * e);
+    if (k < 1 && c.isConnected) { flyHandle = requestAnimationFrame(step); }
+    else { flyHandle = null; if (c.parentNode) c.parentNode.removeChild(c); }
+  }
+  flyHandle = requestAnimationFrame(step);
+}
+
+/* ============================================================
+   PART 1: extract_features
+   ============================================================ */
+var PS = 240, TOP = 34, AX = 0, BX = 264, CX = 528, KC = 75;
+function mapA(p) { return [AX + p[0] * PS, TOP + p[1] * PS]; }
+function mapB(p) { return [BX + (p[0] + 0.5) * PS, TOP + (p[1] + 0.85) * PS]; }
+function mapC(p) { return [CX + (p[0] + 1.6) * KC, TOP + (p[1] + 2.6) * KC]; }
+function panelBox(x0, title, sub) {
+  return '<rect class="pl" x="' + x0 + '" y="' + TOP + '" width="' + PS + '" height="' + PS + '" rx="4"/>' +
+    tx([x0, 14], 'ptitle', title) + tx([x0, 27], 'psub', sub);
+}
+function gridA() {
+  var s = '', v;
+  for (v = 0.25; v < 1; v += 0.25) { s += ln(mapA([v, 0]), mapA([v, 1]), 'gr') + ln(mapA([0, v]), mapA([1, v]), 'gr'); }
+  s += tx([AX + 5, TOP + 12], 'tick', '(0, 0)');
+  s += tx([AX + PS - 5, TOP + 12], 'tick', 'x = 1', 'end');
+  s += tx([AX + 5, TOP + PS - 6], 'tick', 'y = 1');
+  return s;
+}
+function gridB() {
+  var s = '', v, ys = [-0.75, -0.5, -0.25];
+  for (v = -0.25; v <= 0.25; v += 0.25) { if (v !== 0) s += ln(mapB([v, -0.85]), mapB([v, 0.15]), 'gr'); }
+  ys.forEach(function (y) { s += ln(mapB([-0.5, y]), mapB([0.5, y]), 'gr'); s += tx(off(mapB([0, y]), -4, 3), 'tick', fmt(y, 2), 'end'); });
+  s += ln(mapB([-0.5, 0]), mapB([0.5, 0]), 'ax') + ln(mapB([0, -0.85]), mapB([0, 0.15]), 'ax');
+  s += tx(off(mapB([-0.25, 0]), 0, 11), 'tick', '-0.25', 'middle') + tx(off(mapB([0.25, 0]), 0, 11), 'tick', '0.25', 'middle');
+  s += tx(off(mapB([0, 0]), 5, 11), 'tick', 'origin');
+  return s;
+}
+function gridC() {
+  var s = '';
+  [-1, 1].forEach(function (x) { s += ln(mapC([x, -2.6]), mapC([x, 0.6]), 'gr') + tx(off(mapC([x, 0]), 0, 11), 'tick', String(x), 'middle'); });
+  [-2, -1].forEach(function (y) { s += ln(mapC([-1.6, y]), mapC([1.6, y]), 'gr') + tx(off(mapC([0, y]), -4, 3), 'tick', String(y), 'end'); });
+  s += ln(mapC([-1.6, 0]), mapC([1.6, 0]), 'ax') + ln(mapC([0, -2.6]), mapC([0, 0.6]), 'ax');
+  s += tx(off(mapC([0, 0]), 5, 11), 'tick', 'origin');
+  return s;
+}
+function gutter(x) { var y = TOP + PS / 2; return '<path class="gut" d="M' + x + ' ' + (y - 7) + ' l9 7 l-9 7 z"/>'; }
+
+var ORDER1 = { start: 0, wrist: 1, base: 2, relinit: 3, rel: 4, scale: 5, guard: 6, featinit: 7, norm: 8, ret: 9 };
+var frames1 = [], i0;
+frames1.push({ kind: 'start' }, { kind: 'wrist' }, { kind: 'base' }, { kind: 'relinit' });
+for (i0 = 0; i0 < 21; i0++) frames1.push({ kind: 'rel', i: i0 });
+frames1.push({ kind: 'scale' }, { kind: 'guard' }, { kind: 'featinit' });
+for (i0 = 0; i0 < 21; i0++) frames1.push({ kind: 'norm', i: i0 });
+frames1.push({ kind: 'ret' });
+
+function info1(fr) {
+  var raw = RAW1, rel = D1.rel, norm = D1.norm, sc = D1.scale, i = fr.i, w = raw[0], b = raw[9];
+  var nm = (i !== undefined) ? NAMES[i] : '';
+  switch (fr.kind) {
+    case 'start':
+      return { title: 'Input: 21 raw landmarks',
+        desc: 'The function receives <code>landmark_list</code>: 21 (x, y) pairs from MediaPipe, given as fractions of the image width and height. Figure (a) shows them where the hand appears in the camera image. Press <b>Play</b> or <b>Next</b> to run the function one line at a time.',
+        calc: 'landmark_list holds 21 points, for example:\n  landmark_list[0]  = ' + pair(raw[0]) + '   WRIST\n  landmark_list[4]  = ' + pair(raw[4]) + '   THUMB_TIP\n  landmark_list[9]  = ' + pair(raw[9]) + '   MIDDLE_MCP\n  landmark_list[12] = ' + pair(raw[12]) + '   MIDDLE_TIP',
+        lines: [1], skip: [] };
+    case 'wrist':
+      return { title: 'Line 2: remember where the wrist is',
+        desc: 'Landmark 0 is the wrist. It is stored in <code>wrist_point</code> because every other point will be measured <em>from</em> the wrist.',
+        calc: 'wrist_point = landmark_list[0] = ' + hi(pair(w)), lines: [2], skip: [] };
+    case 'base':
+      return { title: 'Line 3: remember the middle-finger base',
+        desc: 'Landmark 9 is the knuckle where the middle finger meets the palm. Note that <code>middle_finger_base</code> is never used again: line 11 reads <code>relative_points[9]</code> directly. The line is harmless and can be deleted.',
+        calc: 'middle_finger_base = landmark_list[9] = ' + hi(pair(b)) + '\n(this variable is not read anywhere below)', lines: [3], skip: [] };
+    case 'relinit':
+      return { title: 'Line 5: start an empty list',
+        desc: 'The loop on the next lines will fill this list with 21 new points, one per landmark.',
+        calc: 'relative_points = []      length = ' + hi('0'), lines: [5], skip: [] };
+    case 'rel':
+      return { title: 'Loop pass ' + (i + 1) + ' of 21: landmark ' + i + ' (' + nm + ')',
+        desc: i === 0
+          ? 'The wrist is subtracted from itself, so it becomes (0, 0). This point is the origin of the new coordinate system.'
+          : 'In (a), the arrow runs from the wrist to this point and splits into a horizontal part &Delta;x and a vertical part &Delta;y. In (b), the same arrow now starts at the origin. These two parts are exactly <code>relative_x</code> and <code>relative_y</code>. Only the position changed; the shape did not.',
+        calc: 'point       = landmark_list[' + i + '] = ' + pair(raw[i]) + '\nwrist_point = ' + pair(w) + '\n\nrelative_x = ' + fmt(raw[i][0]) + ' - ' + par(w[0]) + ' = ' + hi(fmt(rel[i][0])) + '\nrelative_y = ' + fmt(raw[i][1]) + ' - ' + par(w[1]) + ' = ' + hi(fmt(rel[i][1])) + '\n\nrelative_points.append(' + pair(rel[i]) + ')   length = ' + (i + 1),
+        lines: [6, 7, 8, 9], skip: [] };
+    case 'scale': {
+      var dx = rel[0][0] - rel[9][0], dy = rel[0][1] - rel[9][1];
+      return { title: 'Line 11: measure the size of the hand',
+        desc: 'The wrist-to-middle-knuckle distance is called the palm length. It is a good size measure because it does not change when the fingers bend. It is computed with <code>calculate_distance</code>, which applies the Pythagorean theorem. In (b), it is the highlighted segment.',
+        calc: 'calculate_distance(relative_points[0], relative_points[9])\n  point_a = ' + pair(rel[0]) + '   (wrist, now the origin)\n  point_b = ' + pair(rel[9]) + '   (MIDDLE_MCP)\n  x_difference = ' + fmt(rel[0][0]) + ' - ' + par(rel[9][0]) + ' = ' + fmt(dx) + '\n  y_difference = ' + fmt(rel[0][1]) + ' - ' + par(rel[9][1]) + ' = ' + fmt(dy) + '\n  distance = (' + fmt(dx) + '^2 + ' + fmt(dy) + '^2) ** 0.5 = sqrt(' + fmt(dx * dx + dy * dy, 4) + ') = ' + hi(fmt(sc)) + '\n\nscale_distance = ' + hi(fmt(sc)),
+        lines: [11], skip: [], helper: [1, 2, 3, 4, 5] };
+    }
+    case 'guard':
+      return { title: 'Line 13: guard against division by zero',
+        desc: 'Line 18 divides by <code>scale_distance</code>. Dividing by zero would crash the program, so a tiny value is substituted if the distance is zero. Here the distance is ' + fmt(sc) + ', so the condition is False and line 14 is skipped.',
+        calc: 'scale_distance == 0\n' + fmt(sc) + ' == 0   ' + hi('False') + '\nLine 14 is skipped.', lines: [13], skip: [14] };
+    case 'featinit':
+      return { title: 'Line 16: start the final list',
+        desc: 'This list will end with 42 numbers: an x and a y for each of the 21 points.',
+        calc: 'feature_list = []      length = ' + hi('0'), lines: [16], skip: [14] };
+    case 'norm':
+      return { title: 'Loop pass ' + (i + 1) + ' of 21: landmark ' + i + ' (' + nm + ')',
+        desc: i === 0
+          ? 'The wrist is (0, 0), and 0 divided by any palm length is 0. The first two features are therefore always 0.0 and 0.0.'
+          : (i === 9
+            ? 'The middle-finger base is, by definition, exactly one palm length from the wrist, so it becomes (0, -1). This is what defines the unit of measurement. In (c), each unit is one palm length.'
+            : 'Each relative coordinate is divided by the palm length, so distances are now counted in palm lengths. A large hand close to the camera and a small hand far away give the same result. The x value and then the y value are appended to <code>feature_list</code>.'),
+        calc: 'point          = relative_points[' + i + '] = ' + pair(rel[i]) + '\nscale_distance = ' + fmt(sc) + '\n\nnormalized_x = ' + fmt(rel[i][0]) + ' / ' + fmt(sc) + ' = ' + hi(fmt(norm[i][0])) + '\nnormalized_y = ' + fmt(rel[i][1]) + ' / ' + fmt(sc) + ' = ' + hi(fmt(norm[i][1])) + '\n\nfeature_list.append(' + fmt(norm[i][0]) + ')   length = ' + (2 * i + 1) + '\nfeature_list.append(' + fmt(norm[i][1]) + ')   length = ' + (2 * i + 2),
+        lines: [17, 18, 19, 20, 21], skip: [14] };
+    default:
+      return { title: 'Line 23: return the 42 features',
+        desc: 'The function hands back <code>feature_list</code>. Only the hand <em>shape</em> remains: position and size have been removed. Rotation has not been removed, so keep the hand roughly upright. Try the sliders below the table to confirm this.',
+        calc: 'len(feature_list) = ' + hi('42') + '\nfeature_list[0:2]   = [' + fmt(D1.features[0], 3) + ', ' + fmt(D1.features[1], 3) + ']   WRIST (always 0, 0)\nfeature_list[18:20] = [' + fmt(D1.features[18], 3) + ', ' + fmt(D1.features[19], 3) + ']  MIDDLE_MCP (always 0, -1)\nfeature_list[24:26] = [' + fmt(D1.features[24], 3) + ', ' + fmt(D1.features[25], 3) + ']  MIDDLE_TIP',
+        lines: [23], skip: [14] };
+  }
+}
+
+var code1 = new CodeView($('code1'), CODE1);
+var help1 = new CodeView($('help1'), CODE_DIST);
+
+/* table and chips */
+var rows1 = [], chips1 = [];
+(function () {
+  var tb = $('tbody1'), i, tr;
+  for (i = 0; i < 21; i++) {
+    tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + i + '</td><td class="l">' + NAMES[i] + '</td><td></td><td></td><td></td><td></td><td></td><td></td>';
+    tb.appendChild(tr); rows1.push(tr);
+  }
+  var box = $('chips1'), c;
+  for (i = 0; i < 42; i++) {
+    c = document.createElement('span'); c.className = 'chip';
+    c.innerHTML = '<i>' + (i % 2 === 0 ? 'x' : 'y') + Math.floor(i / 2) + '</i><b></b>';
+    box.appendChild(c); chips1.push(c);
+  }
+})();
+
+function draw1(fr, animate, flyMs) {
+  var svg = $('svg1'), order = ORDER1[fr.kind], i = fr.i;
+  var relN = order < 4 ? 0 : (order === 4 ? i + 1 : 21);
+  var normN = order < 8 ? 0 : (order === 8 ? i + 1 : (order === 9 ? 21 : 0));
+  var newRel = (order === 4 && animate) ? i : -1, newNorm = (order === 8 && animate) ? i : -1;
+  var raw = RAW1, rel = D1.rel, norm = D1.norm, s = '', mid;
+
+  s += panelBox(AX, '(a) Raw landmarks', 'position in the camera image');
+  s += panelBox(BX, '(b) Relative to the wrist', 'wrist moved to (0, 0)');
+  s += panelBox(CX, '(c) Normalized', 'divided by the palm length');
+  s += gridA() + gridB() + gridC();
+  s += gutter(AX + PS + 8) + gutter(BX + PS + 8);
+
+  s += skeleton(mapA, raw, 21, -1) + points(mapA, raw, 21, -1);
+  s += skeleton(mapB, rel, relN, newRel) + points(mapB, rel, relN, newRel);
+  s += skeleton(mapC, norm, normN, newNorm) + points(mapC, norm, normN, newNorm);
+
+  if (order >= 1) s += ring(mapA(raw[0]), 8, order === 1 ? 'ring pulse' : 'ring dim');
+  if (order >= 2) s += ring(mapA(raw[9]), 8, order === 2 ? 'ring pulse' : 'ring dim');
+  if (order === 1) s += tx(off(mapA(raw[0]), 0, 20), 'cap halo', 'wrist_point', 'middle');
+  if (order === 2) s += tx(off(mapA(raw[9]), 0, 24), 'cap halo', 'middle_finger_base', 'middle');
+
+  if (order === 4) {
+    s += ring(mapA(raw[i]), 8, 'ring pulse');
+    s += triangle(mapA, raw[0], raw[i], 'now', '\u0394x = ' + fmt(rel[i][0], 3), '\u0394y = ' + fmt(rel[i][1], 3));
+    s += triangle(mapB, [0, 0], rel[i], animate ? 'late' : 'now', '\u0394x = ' + fmt(rel[i][0], 3), '\u0394y = ' + fmt(rel[i][1], 3));
+  }
+  if (order >= 5) {
+    s += ln(mapB([0, 0]), mapB(rel[9]), order === 5 ? 'vec' : 'vec thin');
+    s += ring(mapB(rel[9]), 7, order === 5 ? 'ring pulse' : 'ring dim');
+    mid = mapB([0, rel[9][1] / 2]);
+    if (order === 5) s += tx(off(mid, 8, 4), 'cap halo', 'scale_distance = ' + fmt(D1.scale), 'start');
+    s += ln(mapC([0, 0]), mapC([0, -1]), 'vec thin');
+    s += tx(off(mapC([0, -0.5]), 6, 3), 'cap halo', 'palm length = 1', 'start');
+  }
+  if (order === 8) {
+    s += ring(mapB(rel[i]), 8, 'ring pulse');
+    s += triangle(mapB, [0, 0], rel[i], 'now', 'x = ' + fmt(rel[i][0], 3), 'y = ' + fmt(rel[i][1], 3));
+    s += triangle(mapC, [0, 0], norm[i], animate ? 'late' : 'now', 'x = ' + fmt(norm[i][0], 3), 'y = ' + fmt(norm[i][1], 3));
+  }
+  svg.style.setProperty('--fly', flyMs + 'ms');
+  svg.innerHTML = s;
+  if (animate && order === 4) fly(svg, mapA(raw[i]), mapB(rel[i]), COLORS[finger(i)], flyMs);
+  if (animate && order === 8) fly(svg, mapB(rel[i]), mapC(norm[i]), COLORS[finger(i)], flyMs);
+}
+
+function table1(fr) {
+  var order = ORDER1[fr.kind], i, r, cells, cur = -1;
+  var relN = order < 4 ? 0 : (order === 4 ? fr.i + 1 : 21);
+  var normN = order < 8 ? 0 : (order === 8 ? fr.i + 1 : (order === 9 ? 21 : 0));
+  if (order === 4 || order === 8) cur = fr.i;
+  for (i = 0; i < 21; i++) {
+    r = rows1[i]; cells = r.children;
+    cells[2].textContent = fmt(RAW1[i][0]); cells[3].textContent = fmt(RAW1[i][1]);
+    cells[4].textContent = i < relN ? fmt(D1.rel[i][0]) : ''; cells[5].textContent = i < relN ? fmt(D1.rel[i][1]) : '';
+    cells[6].textContent = i < normN ? fmt(D1.norm[i][0]) : ''; cells[7].textContent = i < normN ? fmt(D1.norm[i][1]) : '';
+    r.classList.toggle('cur', i === cur);
+  }
+  if (cur >= 0) {
+    var wrap = $('tbody1').parentNode.parentNode, row = rows1[cur];
+    if (row.offsetTop < wrap.scrollTop + 40) wrap.scrollTop = Math.max(0, row.offsetTop - 60);
+    else if (row.offsetTop + row.offsetHeight > wrap.scrollTop + wrap.clientHeight - 10) wrap.scrollTop = row.offsetTop - wrap.clientHeight + row.offsetHeight + 20;
+  }
+}
+function chips1Update(fr) {
+  var order = ORDER1[fr.kind], n = order < 8 ? 0 : (order === 8 ? 2 * (fr.i + 1) : (order === 9 ? 42 : 0)), i;
+  for (i = 0; i < 42; i++) {
+    chips1[i].children[1].textContent = i < n ? fmt(D1.features[i], 3) : '';
+    chips1[i].classList.toggle('on', i < n);
+    chips1[i].classList.toggle('fresh', order === 8 && i >= n - 2 && i < n);
+  }
+}
+
+function render1(fr, index, delayMs, animate) {
+  var inf = info1(fr), flyMs = Math.min(520, Math.round(delayMs * 0.55));
+  code1.set(inf.lines, inf.skip, true);
+  help1.set(inf.helper || [], [], false);
+  $('title1').textContent = inf.title;
+  $('desc1').innerHTML = inf.desc;
+  $('calc1').innerHTML = inf.calc;
+  draw1(fr, animate, flyMs);
+  table1(fr);
+  chips1Update(fr);
+}
+var stepper1 = makeStepper('p1', render1);
+stepper1.setFrames(frames1, 'start');
+
+/* ---------- invariance lab ---------- */
+function transformHand(raw, size, dx, dy, deg) {
+  var w = raw[0], th = deg * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+  return raw.map(function (p) {
+    var vx = (p[0] - w[0]) * size, vy = (p[1] - w[1]) * size;
+    return [w[0] + vx * c - vy * s + dx, w[1] + vx * s + vy * c + dy];
+  });
+}
+var LX0 = 0, RX0 = 296;
+function mapL(p) { return [LX0 + p[0] * PS, TOP + p[1] * PS]; }
+function mapR(p) { return [RX0 + (p[0] + 1.6) * KC, TOP + (p[1] + 2.6) * KC]; }
+function ghost(map, pts) {
+  var s = '';
+  LINKS.forEach(function (l) { s += ln(map(pts[l[0]]), map(pts[l[1]]), 'ghost'); });
+  return s;
+}
+function drawLab() {
+  var size = +$('lab-size').value, dx = +$('lab-dx').value, dy = +$('lab-dy').value, rot = +$('lab-rot').value;
+  $('lab-size-v').textContent = size.toFixed(2) + 'x';
+  $('lab-dx-v').textContent = dx.toFixed(2);
+  $('lab-dy-v').textContent = dy.toFixed(2);
+  $('lab-rot-v').textContent = rot + '\u00B0';
+  var cur = transformHand(RAW1, size, dx, dy, rot), f1 = extractFeatures(cur), s = '', i, maxDiff = 0;
+  for (i = 0; i < 42; i++) maxDiff = Math.max(maxDiff, Math.abs(f1.features[i] - D1.features[i]));
+  s += '<defs><clipPath id="clipL"><rect x="' + LX0 + '" y="' + TOP + '" width="' + PS + '" height="' + PS + '"/></clipPath><clipPath id="clipR"><rect x="' + RX0 + '" y="' + TOP + '" width="' + PS + '" height="' + PS + '"/></clipPath></defs>';
+  s += panelBox(LX0, 'Camera image', 'what changes: size, place, angle');
+  s += panelBox(RX0, 'Normalized features', 'what the classifier receives');
+  s += '<g clip-path="url(#clipL)">' + ghost(mapL, RAW1) + skeleton(mapL, cur, 21, -1) + points(mapL, cur, 21, -1) + '</g>';
+  s += '<g clip-path="url(#clipR)">' + ln(mapR([-1.6, 0]), mapR([1.6, 0]), 'ax') + ln(mapR([0, -2.6]), mapR([0, 0.6]), 'ax') + ghost(mapR, D1.norm) + skeleton(mapR, f1.norm, 21, -1) + points(mapR, f1.norm, 21, -1) + '</g>';
+  $('svgLab').innerHTML = s;
+
+  var rows = [
+    ['Wrist position in the image (raw)', pair(RAW1[0]), pair(cur[0]), 'img'],
+    ['Palm length in the image (raw)', fmt(D1.scale), fmt(f1.scale), 'img'],
+    ['Thumb tip (normalized)', pair(D1.norm[4], 3), pair(f1.norm[4], 3), 'feat', 4],
+    ['Index tip (normalized)', pair(D1.norm[8], 3), pair(f1.norm[8], 3), 'feat', 8],
+    ['Middle tip (normalized)', pair(D1.norm[12], 3), pair(f1.norm[12], 3), 'feat', 12],
+    ['Pinky tip (normalized)', pair(D1.norm[20], 3), pair(f1.norm[20], 3), 'feat', 20]
+  ];
+  var html = '';
+  rows.forEach(function (r) {
+    var res;
+    if (r[3] === 'img') { res = (r[1] === r[2]) ? 'unchanged' : '<span class="bad">changed (expected)</span>'; }
+    else {
+      var d = Math.max(Math.abs(D1.norm[r[4]][0] - f1.norm[r[4]][0]), Math.abs(D1.norm[r[4]][1] - f1.norm[r[4]][1]));
+      res = d < 0.0005 ? '<span class="ok">identical</span>' : '<span class="bad">changed</span>';
+    }
+    html += '<tr><td class="l">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td class="l">' + res + '</td></tr>';
+  });
+  html += '<tr><td class="l">Largest difference over all 42 features</td><td>0.0000</td><td>' + fmt(maxDiff) + '</td><td class="l">' + (maxDiff < 0.0005 ? '<span class="ok">identical</span>' : '<span class="bad">changed</span>') + '</td></tr>';
+  $('tbodyLab').innerHTML = html;
+
+  var note;
+  if (rot !== 0) note = 'Rotation is <b>not</b> removed by <code>extract_features</code>: the normalized hand in the right panel is rotated, so the 42 numbers changed. Keep your hand roughly upright when using the controller.';
+  else if (size !== 1 || dx !== 0 || dy !== 0) note = 'The image numbers changed, but the 42 normalized numbers are identical. The classifier sees the shape of the hand, not its size or position.';
+  else note = 'Move a slider. Size and position will change the image numbers but not the normalized features.';
+  $('lab-note').innerHTML = note;
+}
+['lab-size', 'lab-dx', 'lab-dy', 'lab-rot'].forEach(function (id) { $(id).addEventListener('input', drawLab); });
+$('lab-reset').addEventListener('click', function () {
+  $('lab-size').value = 1; $('lab-dx').value = 0; $('lab-dy').value = 0; $('lab-rot').value = 0; drawLab();
+});
+drawLab();
+
+/* ============================================================
+   PART 2: GestureClassifier.predict
+   ============================================================ */
+var st = { preset: 'open', features: [], pinchThr: 0.4, openThr: 1.3 };
+function presetFeatures(key) {
+  var local = key === 'pinch' ? PINCH_LOCAL : (key === 'idle' ? IDLE_LOCAL : OPEN_LOCAL);
+  return extractFeatures(localToRaw(local)).features;
+}
+st.features = presetFeatures('open');
+function getPoint(f, idx) { return [f[idx * 2], f[idx * 2 + 1]]; }
+
+var code2 = new CodeView($('code2'), CODE2);
+var helpGp = new CodeView($('help2a'), CODE_GP);
+var helpDist = new CodeView($('help2b'), CODE_DIST);
+var rows2 = [];
+(function () {
+  var tb = $('tbody2'), i, tr;
+  for (i = 0; i < 21; i++) {
+    tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + i + '</td><td class="l">' + NAMES[i] + '</td><td class="dim">' + (2 * i) + '</td><td></td><td class="dim">' + (2 * i + 1) + '</td><td></td>';
+    tb.appendChild(tr); rows2.push(tr);
+  }
+})();
+
+function getPointCalc(idx, constName, f) {
+  var p = getPoint(f, idx);
+  return 'get_point(feature_list, ' + constName + ')      ' + constName + ' = ' + idx +
+    '\n  x_position = ' + idx + ' * 2      = ' + hi(String(idx * 2)) +
+    '\n  y_position = ' + idx + ' * 2 + 1  = ' + hi(String(idx * 2 + 1)) +
+    '\n  x_value = feature_list[' + (idx * 2) + '] = ' + fmt(p[0]) +
+    '\n  y_value = feature_list[' + (idx * 2 + 1) + '] = ' + fmt(p[1]) +
+    '\n  returns ' + hi(pair(p));
+}
+function distCalc(label, an, a, bn, b, res) {
+  var dx = a[0] - b[0], dy = a[1] - b[1];
+  return 'calculate_distance(' + an + ', ' + bn + ')\n  point_a = ' + pair(a) + '\n  point_b = ' + pair(b) +
+    '\n  x_difference = ' + fmt(a[0]) + ' - ' + par(b[0]) + ' = ' + fmt(dx) +
+    '\n  y_difference = ' + fmt(a[1]) + ' - ' + par(b[1]) + ' = ' + fmt(dy) +
+    '\n  distance = (' + fmt(dx) + '^2 + ' + fmt(dy) + '^2) ** 0.5 = sqrt(' + fmt(dx * dx + dy * dy) + ') = ' + hi(fmt(res)) +
+    '\n\n' + label + ' = ' + hi(fmt(res));
+}
+
+function buildFrames2() {
+  var f = st.features, pt = st.pinchThr, ot = st.openThr;
+  var W = getPoint(f, 0), T = getPoint(f, 4), I = getPoint(f, 8), M = getPoint(f, 12);
+  var pd = dist(T, I), ml = dist(W, M), isPinch = pd < pt, isOpen = ml > ot;
+  var frames = [], skip = [];
+  var vis = { wrist: false, thumb: false, idx: false, mid: false, pd: false, ml: false, pz: false, oz: false, result: false };
+  var res = null;
+  function add(o) {
+    o.vis = { wrist: vis.wrist, thumb: vis.thumb, idx: vis.idx, mid: vis.mid, pd: vis.pd, ml: vis.ml, pz: vis.pz, oz: vis.oz, result: vis.result };
+    o.skip = skip.slice(); o.isPinch = isPinch; o.isOpen = isOpen; o.pd = pd; o.ml = ml; o.res = res;
+    frames.push(o);
+  }
+  add({ kind: 'init', title: 'Line 2: create the classifier',
+    desc: 'When <code>GestureClassifier()</code> is created, <code>__init__</code> stores two thresholds. A threshold is a cut-off value used later in a comparison. Both are measured in palm lengths, because the features were normalized in Part 1. Use the sliders beside the figure to change them.',
+    calc: 'self.pinch_distance_threshold = ' + hi(fmt(pt, 2)) + '\nself.open_distance_threshold  = ' + hi(fmt(ot, 2)),
+    lines: [2, 3, 4], focus: -1 });
+  vis.wrist = true;
+  add({ kind: 'wrist', title: 'Line 7: read the wrist from the flat list',
+    desc: 'The 42 features are stored in one flat list. <code>get_point</code> converts a landmark number n into its two positions: x is at 2n and y is at 2n + 1. The wrist is landmark 0, so it lives at positions 0 and 1, and it is always (0, 0).',
+    calc: getPointCalc(0, 'WRIST_INDEX', f), lines: [7], helper: 'gp', hl: [1, 6, 7, 8, 9, 10, 11], focus: 0 });
+  vis.thumb = true;
+  add({ kind: 'thumb', title: 'Line 8: read the thumb tip',
+    desc: 'Landmark 4 is the tip of the thumb. It is stored at positions 8 and 9. In the figure it is the left-hand handle.',
+    calc: getPointCalc(4, 'THUMB_TIP_INDEX', f), lines: [8], helper: 'gp', hl: [2, 6, 7, 8, 9, 10, 11], focus: 4 });
+  vis.idx = true;
+  add({ kind: 'idx', title: 'Line 9: read the index fingertip',
+    desc: 'Landmark 8 is the tip of the index finger. It is stored at positions 16 and 17.',
+    calc: getPointCalc(8, 'INDEX_TIP_INDEX', f), lines: [9], helper: 'gp', hl: [3, 6, 7, 8, 9, 10, 11], focus: 8 });
+  vis.mid = true;
+  add({ kind: 'mid', title: 'Line 10: read the middle fingertip',
+    desc: 'Landmark 12 is the tip of the middle finger. It is stored at positions 24 and 25.',
+    calc: getPointCalc(12, 'MIDDLE_TIP_INDEX', f), lines: [10], helper: 'gp', hl: [4, 6, 7, 8, 9, 10, 11], focus: 12 });
+  vis.pd = true;
+  add({ kind: 'pd', title: 'Line 12: how far apart are thumb and index tips?',
+    desc: 'The straight-line gap between the two fingertips is measured with the Pythagorean theorem. A small value means the two fingers are touching. The blue line in the figure is this gap.',
+    calc: distCalc('pinch_distance', 'thumb_tip_point', T, 'index_tip_point', I, pd), lines: [12], helper: 'dist', hl: [1, 2, 3, 4, 5], focus: -1 });
+  vis.ml = true;
+  add({ kind: 'ml', title: 'Line 13: how far does the middle finger reach?',
+    desc: 'The wrist is the origin (0, 0), so this is simply how far the middle fingertip is from the origin. A straight finger reaches about 2 palm lengths; a curled finger reaches much less. The green line in the figure is this reach.',
+    calc: distCalc('middle_finger_length', 'wrist_point', W, 'middle_tip_point', M, ml), lines: [13], helper: 'dist', hl: [1, 2, 3, 4, 5], focus: -1 });
+  vis.pz = true;
+  if (!isPinch) skip = [16, 17, 18];
+  add({ kind: 'checkPinch', title: 'Line 15: is this a pinch?',
+    desc: isPinch
+      ? 'The thumb-to-index gap is smaller than the threshold, so the condition is <b>True</b> and the indented lines run. In the figure, the index fingertip lies inside the circle drawn around the thumb tip.'
+      : 'The thumb-to-index gap is not smaller than the threshold, so the condition is <b>False</b>. Python skips lines 16 to 18 (dimmed) and continues with line 20. In the figure, the index fingertip lies outside the circle.',
+    calc: 'pinch_distance &lt; self.pinch_distance_threshold\n' + fmt(pd) + ' &lt; ' + fmt(pt) + '   ' + hi(isPinch ? 'True' : 'False'), lines: [15], focus: -1 });
+
+  if (isPinch) {
+    res = { label: 'pinch', conf: 1 - pd / pt };
+    add({ kind: 'pinchRes', title: 'Lines 16 and 17: label the gesture and score it',
+      desc: 'The label is "pinch". The confidence is 1.0 minus the ratio of the measured gap to the threshold: the closer the fingertips, the closer to 1.0.',
+      calc: 'gesture_label = "pinch"\nconfidence_score = 1.0 - (pinch_distance / self.pinch_distance_threshold)\n                 = 1.0 - (' + fmt(pd) + ' / ' + fmt(pt) + ')\n                 = 1.0 - ' + fmt(pd / pt) + '\n                 = ' + hi(fmt(1 - pd / pt)), lines: [16, 17], focus: -1 });
+    skip = skip.concat([20, 21, 22, 23, 24, 25, 26, 27]);
+    vis.result = true;
+    var extra = '';
+    if (isOpen) extra += ' This hand also satisfies the open rule (the middle finger reaches ' + fmt(ml, 2) + ', beyond ' + fmt(ot, 2) + '), but pinch is checked first, so the function has already returned. That is why the order of the two <code>if</code> statements matters.';
+    if (1 - pd / pt < 0.8) extra += ' Note: if <code>main.py</code> later ignores anything below a minimum confidence of 0.80 (the planned value), this pinch would be ignored, because its confidence is ' + fmt(1 - pd / pt, 2) + '.';
+    add({ kind: 'ret', title: 'Line 18: return the result',
+      desc: 'The function ends here and gives back the label and the confidence. Lines 20 to 27 are never reached.' + extra,
+      calc: 'return gesture_label, confidence_score\n  \u2192 ("pinch", ' + hi(fmt(res.conf)) + ')', lines: [18], focus: -1 });
+  } else {
+    vis.oz = true;
+    if (!isOpen) skip = skip.concat([21, 22, 23]);
+    add({ kind: 'checkOpen', title: 'Line 20: is the hand open?',
+      desc: isOpen
+        ? 'The middle fingertip is farther from the wrist than the threshold, so the condition is <b>True</b>. In the figure, the fingertip lies outside the large circle around the wrist.'
+        : 'The middle fingertip does not reach beyond the threshold, so the condition is <b>False</b>. Python skips lines 21 to 23 (dimmed). In the figure, the fingertip lies inside the large circle.',
+      calc: 'middle_finger_length &gt; self.open_distance_threshold\n' + fmt(ml) + ' &gt; ' + fmt(ot) + '   ' + hi(isOpen ? 'True' : 'False'), lines: [20], focus: -1 });
+    if (isOpen) {
+      res = { label: 'open', conf: Math.min(ml / ot, 1) };
+      add({ kind: 'openRes', title: 'Lines 21 and 22: label the gesture and score it',
+        desc: 'The label is "open". The confidence is the reach divided by the threshold, limited to at most 1.0 by <code>min</code>. Because this line runs only when the reach is already larger than the threshold, the ratio is always above 1, so the confidence for "open" is always exactly 1.0 and carries no information.',
+        calc: 'gesture_label = "open"\nconfidence_score = min(middle_finger_length / self.open_distance_threshold, 1.0)\n                 = min(' + fmt(ml) + ' / ' + fmt(ot) + ', 1.0)\n                 = min(' + fmt(ml / ot) + ', 1.0)\n                 = ' + hi(fmt(Math.min(ml / ot, 1))), lines: [21, 22], focus: -1 });
+      skip = skip.concat([25, 26, 27]);
+      vis.result = true;
+      add({ kind: 'ret', title: 'Line 23: return the result',
+        desc: 'The function ends here. Lines 25 to 27 are never reached.',
+        calc: 'return gesture_label, confidence_score\n  \u2192 ("open", ' + hi(fmt(res.conf)) + ')', lines: [23], focus: -1 });
+    } else {
+      res = { label: 'idle', conf: 0.5 };
+      add({ kind: 'idleRes', title: 'Lines 25 and 26: neither rule matched',
+        desc: 'Neither the pinch rule nor the open rule matched, so the hand is labelled "idle". The confidence 0.5 is a fixed placeholder, not a measured value.',
+        calc: 'gesture_label = "idle"\nconfidence_score = ' + hi('0.5'), lines: [25, 26], focus: -1 });
+      vis.result = true;
+      add({ kind: 'ret', title: 'Line 27: return the result',
+        desc: 'The function ends here. In the finished program, an "idle" result triggers no action.',
+        calc: 'return gesture_label, confidence_score\n  \u2192 ("idle", ' + hi('0.5') + ')', lines: [27], focus: -1 });
+    }
+  }
+  return frames;
+}
+
+/* ---------- Part 2 drawing ---------- */
+var P2X = 20, P2Y = 20, K2 = 125;
+function map2(p) { return [P2X + (p[0] + 1.6) * K2, P2Y + (p[1] + 2.6) * K2]; }
+var HANDLES = [[4, 'thumb tip', -14, -10, 'end'], [8, 'index tip', 14, -10, 'start'], [12, 'middle tip', 14, -10, 'start']];
+
+function draw2(fr) {
+  var pts = [], i, s = '', v = fr.vis, W, T, I, M, c, x, y;
+  for (i = 0; i < 21; i++) pts.push([st.features[2 * i], st.features[2 * i + 1]]);
+  W = pts[0]; T = pts[4]; I = pts[8]; M = pts[12];
+  s += '<defs><clipPath id="clip2"><rect x="20" y="20" width="400" height="400" rx="4"/></clipPath></defs>';
+  s += '<rect class="pl" x="20" y="20" width="400" height="400" rx="4"/>';
+  s += '<g clip-path="url(#clip2)">';
+  for (x = -1; x <= 1; x++) s += ln(map2([x, -2.6]), map2([x, 0.6]), x === 0 ? 'ax' : 'gr');
+  for (y = -2; y <= 0; y++) s += ln(map2([-1.6, y]), map2([1.6, y]), y === 0 ? 'ax' : 'gr');
+  if (v.pz) { c = map2(T); s += '<circle class="zone ' + (fr.isPinch ? 'zone-yes' : 'zone-no') + '" cx="' + c[0].toFixed(1) + '" cy="' + c[1].toFixed(1) + '" r="' + (st.pinchThr * K2).toFixed(1) + '"/>'; }
+  if (v.oz) { c = map2(W); s += '<circle class="zone ' + (fr.isOpen ? 'zone-yes' : 'zone-no') + '" cx="' + c[0].toFixed(1) + '" cy="' + c[1].toFixed(1) + '" r="' + (st.openThr * K2).toFixed(1) + '"/>'; }
+  s += skeleton(map2, pts, 21, -1) + points(map2, pts, 21, -1);
+  if (v.pd) s += ln(map2(T), map2(I), 'mline a');
+  if (v.ml) s += ln(map2(W), map2(M), 'mline b');
+  s += '</g>';
+  [-1, 1].forEach(function (t) { s += tx(off(map2([t, 0]), 0, 12), 'tick', String(t), 'middle'); });
+  [-2, -1].forEach(function (t) { s += tx(off(map2([0, t]), -5, 3), 'tick', String(t), 'end'); });
+  s += tx([P2X + 6, P2Y + 14], 'tick', 'units: palm lengths (y grows downward)');
+  if (v.pz) s += tx(off(map2(T), st.pinchThr * K2 + 4, 4), 'cap halo', 'r = ' + fmt(st.pinchThr, 2), 'start');
+  if (v.oz) s += tx(off(map2(W), st.openThr * K2 - 6, -6), 'cap halo', 'r = ' + fmt(st.openThr, 2), 'end');
+  if (v.pd) { var m1 = map2([(T[0] + I[0]) / 2, (T[1] + I[1]) / 2]); s += tx(off(m1, 0, -14), 'cap halo', 'gap = ' + fmt(fr.pd, 3), 'middle'); }
+  if (v.ml) { var m2 = map2([(W[0] + M[0]) / 2, (W[1] + M[1]) / 2]); s += tx(off(m2, 8, 0), 'cap halo', 'reach = ' + fmt(fr.ml, 3), 'start'); }
+  if (fr.focus >= 0) {
+    var fp = map2(pts[fr.focus]);
+    s += ring(fp, 10, 'ring pulse');
+    s += tx(off(fp, fr.focus === 0 ? 14 : 16, fr.focus === 0 ? 22 : 22), 'cap halo', 'landmark ' + fr.focus + ': ' + pair(pts[fr.focus], 2), fr.focus === 4 ? 'start' : 'start');
+  }
+  HANDLES.forEach(function (h) {
+    var p = map2(pts[h[0]]);
+    s += '<circle class="handle" data-h="' + h[0] + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="12" tabindex="0" role="slider" aria-label="Drag the ' + h[1] + '"/>';
+  });
+  s += tx(off(map2(T), -16, -14), 'idx halo', 'drag: thumb tip', 'end');
+  s += tx(off(map2(I), 16, -14), 'idx halo', 'drag: index tip', 'start');
+  s += tx(off(map2(M), 16, -14), 'idx halo', 'drag: middle tip', 'start');
+  $('svg2').innerHTML = s;
+}
+
+function gauges(fr) {
+  var v = fr.vis;
+  function setG(id, on, val, scale, thr) {
+    $(id + '-val').textContent = on ? fmt(val, 3) + '  (threshold ' + fmt(thr, 2) + ')' : 'not computed yet';
+    $(id + '-fill').style.width = on ? Math.min(100, val / scale * 100) + '%' : '0';
+    $(id + '-mark').style.left = (Math.min(100, thr / scale * 100)) + '%';
+  }
+  setG('g1', v.pd, fr.pd, 2.0, st.pinchThr);
+  setG('g2', v.ml, fr.ml, 2.6, st.openThr);
+}
+function resultBox(fr) {
+  var box = $('result2');
+  if (fr.vis.result && fr.res) {
+    box.className = 'result r-' + fr.res.label;
+    box.innerHTML = '<small>Value returned by predict</small><strong>("' + fr.res.label + '", ' + fmt(fr.res.conf, 4) + ')</strong>';
+  } else {
+    box.className = 'result';
+    box.innerHTML = '<small>Value returned by predict</small><strong>not returned yet</strong>';
+  }
+}
+function table2(fr) {
+  var used = { 0: fr.vis.wrist, 4: fr.vis.thumb, 8: fr.vis.idx, 12: fr.vis.mid }, i;
+  for (i = 0; i < 21; i++) {
+    rows2[i].children[3].textContent = fmt(st.features[2 * i]);
+    rows2[i].children[5].textContent = fmt(st.features[2 * i + 1]);
+    rows2[i].classList.toggle('used', !!used[i]);
+    rows2[i].classList.toggle('cur', i === fr.focus);
+  }
+}
+function zoneCaption(fr) {
+  var t = 'Circle around the thumb tip (radius ' + fmt(st.pinchThr, 2) + '): a pinch needs the index fingertip inside it.';
+  if (fr.vis.oz) t += ' Large circle around the wrist (radius ' + fmt(st.openThr, 2) + '): "open" needs the middle fingertip outside it.';
+  $('zonecap').textContent = fr.vis.pz ? t : 'The circles that represent the two thresholds appear when the comparisons are reached (lines 15 and 20).';
+}
+
+function render2(fr, index, delayMs, animate) {
+  code2.set(fr.lines, fr.skip, true);
+  helpGp.set(fr.helper === 'gp' ? fr.hl : [], [], false);
+  helpDist.set(fr.helper === 'dist' ? fr.hl : [], [], false);
+  $('title2').textContent = fr.title;
+  $('desc2').innerHTML = fr.desc;
+  $('calc2').innerHTML = fr.calc;
+  draw2(fr);
+  gauges(fr); resultBox(fr); table2(fr); zoneCaption(fr);
+}
+var stepper2 = makeStepper('p2', render2);
+function rebuild2(mode) { stepper2.setFrames(buildFrames2(), mode); }
+rebuild2('start');
+
+/* controls for part 2 */
+function syncThresholdLabels() { $('thr-pinch-v').textContent = fmt(st.pinchThr, 2); $('thr-open-v').textContent = fmt(st.openThr, 2); }
+syncThresholdLabels();
+$('thr-pinch').addEventListener('input', function () { st.pinchThr = parseFloat(this.value); syncThresholdLabels(); rebuild2('keep'); });
+$('thr-open').addEventListener('input', function () { st.openThr = parseFloat(this.value); syncThresholdLabels(); rebuild2('keep'); });
+Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (b) {
+  b.addEventListener('click', function () {
+    st.preset = b.getAttribute('data-preset');
+    st.features = presetFeatures(st.preset);
+    Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+    rebuild2('start');
+  });
+});
+
+/* dragging the three fingertips */
+(function () {
+  var svg = $('svg2'), dragging = -1;
+  function toWorld(e) {
+    var r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) * (440 / r.width), sy = (e.clientY - r.top) * (440 / r.height);
+    var wx = (sx - P2X) / K2 - 1.6, wy = (sy - P2Y) / K2 - 2.6;
+    return [Math.max(-1.55, Math.min(1.55, wx)), Math.max(-2.55, Math.min(0.55, wy))];
+  }
+  function moveTo(idx, p) {
+    st.features[idx * 2] = p[0]; st.features[idx * 2 + 1] = p[1];
+    Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (o) { o.setAttribute('aria-pressed', 'false'); });
+    rebuild2('end');
+  }
+  svg.addEventListener('pointerdown', function (e) {
+    var t = e.target;
+    if (t && t.getAttribute && t.getAttribute('data-h') !== null) {
+      dragging = parseInt(t.getAttribute('data-h'), 10);
+      stepper2.stop();
+      try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+      moveTo(dragging, toWorld(e));
+      e.preventDefault();
+    }
+  });
+  svg.addEventListener('pointermove', function (e) { if (dragging >= 0) moveTo(dragging, toWorld(e)); });
+  function end() { dragging = -1; }
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', end);
+  svg.addEventListener('keydown', function (e) {
+    var t = e.target, idx, dx = 0, dy = 0;
+    if (!t || !t.getAttribute || t.getAttribute('data-h') === null) return;
+    if (e.key === 'ArrowLeft') dx = -0.05; else if (e.key === 'ArrowRight') dx = 0.05; else if (e.key === 'ArrowUp') dy = -0.05; else if (e.key === 'ArrowDown') dy = 0.05; else return;
+    idx = parseInt(t.getAttribute('data-h'), 10);
+    e.preventDefault(); e.stopPropagation();
+    moveTo(idx, [Math.max(-1.55, Math.min(1.55, st.features[idx * 2] + dx)), Math.max(-2.55, Math.min(0.55, st.features[idx * 2 + 1] + dy))]);
+    var again = svg.querySelector('[data-h="' + idx + '"]'); if (again) again.focus();
+  });
+})();
+
+/* ============================================================
+   Part 3: Debouncer (mirrors smoothing.py; time is simulated)
+   ============================================================ */
+var FPS = 30, SEQ = [], st3 = { hold: 8, cool: 1.5 };
+(function () { function add(l, n) { for (var k = 0; k < n; k++) SEQ.push(l); }
+  add('idle',4); add('pinch',6); add('idle',1); add('pinch',2); add('open',1); add('pinch',27); add('idle',10); add('open',29); })();
+var CODE3 = [
+'import time','','',
+'class Debouncer:',
+'    def __init__(self, hold_frames=8, cooldown_seconds=1.5):',
+'        self.hold_frames = hold_frames',
+'        self.cooldown_seconds = cooldown_seconds',
+'',
+'        self.candidate_label = None',
+'        self.frame_count = 0',
+'        self.locked_until_time = 0.0',
+'',
+'    def reset(self):',
+'        self.candidate_label = None',
+'        self.frame_count = 0',
+'',
+'    def update(self, label):',
+'        current_time = time.monotonic()',
+'',
+'        if current_time < self.locked_until_time:',
+'            self.reset()',
+'            return None',
+'',
+'        if label == "idle":',
+'            self.reset()',
+'            return None',
+'',
+'        if label == self.candidate_label:',
+'            self.frame_count = self.frame_count + 1',
+'        else:',
+'            self.candidate_label = label',
+'            self.frame_count = 1',
+'',
+'        if self.frame_count >= self.hold_frames:',
+'            confirmed_label = self.candidate_label',
+'            self.locked_until_time = current_time + self.cooldown_seconds',
+'            self.reset()',
+'            return confirmed_label',
+'',
+'        return None'
+];
+var code3 = new CodeView($('code3'), CODE3);
+
+function buildFrames3() {
+  var cd = Math.round(st3.cool * FPS), cand = null, count = 0, lockedUntil = 0, n = 0, out = [], i;
+  for (i = 0; i < SEQ.length; i++) {
+    var label = SEQ[i], kind, hl, fired = null, pc = cand, pn = count, lb = lockedUntil;
+    if (i < lockedUntil) { kind = 'locked'; cand = null; count = 0; hl = [18,20,21,22]; }
+    else if (label === 'idle') { kind = 'idle'; cand = null; count = 0; hl = [18,20,24,25,26]; }
+    else {
+      if (label === cand) { count += 1; kind = 'same'; hl = [18,20,24,28,29,34]; }
+      else { cand = label; count = 1; kind = 'new'; hl = [18,20,24,28,30,31,32,34]; }
+      if (count >= st3.hold) { fired = label; n += 1; lockedUntil = i + cd; hl = hl.concat([35,36,37,38]); }
+      else { hl = hl.concat([40]); }
+    }
+    out.push({ i: i, label: label, kind: kind, hl: hl, fired: fired, pc: pc, pn: pn, lb: lb, cand: cand, count: count, lockedUntil: lockedUntil, cd: cd, n: n });
+    if (fired) { cand = null; count = 0; }
+  }
+  return out;
+}
+
+function text3(f) {
+  var t = f.i / FPS, L = "'" + f.label + "'", h = st3.hold, d, c;
+  var now = 'current_time = ' + f.i + ' / ' + FPS + ' = ' + fmt(t, 2) + ' s';
+  var lk = 'locked_until_time = ' + fmt(f.lb / FPS, 2) + ' s';
+  var title = 'Frame ' + f.i + ' (t = ' + fmt(t, 2) + ' s): classifier says ' + L;
+  if (f.kind === 'locked') {
+    d = 'The Debouncer is in its <b>cooldown</b>. The camera still reports ' + esc(L) + ', but line 20 is true, so the counter is wiped and <code>None</code> comes back. Nothing can be confirmed until the lock ends.';
+    c = esc(now) + '\n' + esc(lk) + '\n' + hi(fmt(t, 2) + ' < ' + fmt(f.lb / FPS, 2)) + ' is True: reset() and return None';
+  } else if (f.kind === 'idle') {
+    d = 'The hand shows no gesture (<b>idle</b>). Counting stops and starts over from zero, so one flicker in the middle of a gesture cancels the attempt.';
+    c = esc(now) + '\n' + esc(lk) + '\nnot locked (' + fmt(t, 2) + ' < ' + fmt(f.lb / FPS, 2) + ' is False)\n' + hi('label == "idle"') + ' is True: reset() and return None';
+  } else {
+    var head = esc(now) + '\n' + esc(lk) + '\nnot locked (' + fmt(t, 2) + ' < ' + fmt(f.lb / FPS, 2) + ' is False)\n';
+    var step = f.kind === 'same' ? 'label equals candidate_label, so frame_count: ' + f.pn + ' to ' + f.count : 'label differs from candidate_label (' + (f.pc || 'None') + '), so candidate = ' + f.label + ', frame_count = 1';
+    var chk = (f.fired ? f.count : f.count) + ' >= ' + h;
+    if (f.fired) {
+      d = 'The count reached <b>' + h + '</b>. The gesture was held long enough, so <code>update</code> returns ' + esc(L) + '. <b>This is the only moment an action would run.</b> The lock now lasts ' + fmt(st3.cool, 1) + ' s.';
+      c = head + esc(step) + '\n' + hi(chk) + ' is True: confirmed_label = ' + esc(L) + '\nlocked_until_time = ' + fmt(t, 2) + ' + ' + fmt(st3.cool, 1) + ' = ' + fmt(t + st3.cool, 2) + ' s, then return ' + esc(L);
+    } else {
+      d = f.kind === 'same' ? 'The same gesture again, so the counter grows to <b>' + f.count + ' of ' + h + '</b>. Not enough yet, so <code>None</code> is returned.' : 'A <b>different</b> label than before, so the counter restarts. ' + esc(L) + ' becomes the candidate with count 1 (needs ' + h + ').';
+      c = head + esc(step) + '\n' + hi(chk) + ' is False: return None';
+    }
+  }
+  return { title: title, desc: d, calc: c };
+}
+
+function draw3(f) {
+  var X0 = 24, CW = 9, fr = stepper3.frames, s = '', j, k, cx;
+  s += '<rect class="pl" x="4" y="4" width="760" height="242" rx="4"/>';
+  s += '<text class="ptitle" x="24" y="26">1. Label the classifier gave each frame</text>';
+  for (j = 0; j < SEQ.length; j++) s += '<rect class="l-' + SEQ[j] + '" x="' + (X0 + j * CW) + '" y="34" width="' + (CW - 1) + '" height="24" opacity="' + (j <= f.i ? 1 : 0.22) + '"/>';
+  s += '<text class="ptitle" x="24" y="84">2. Cooldown lock (grey band) and confirmed actions (arrows)</text>';
+  for (j = 0; j <= f.i; j++) {
+    if (fr[j].kind === 'locked') s += '<rect class="lockband" x="' + (X0 + j * CW) + '" y="90" width="' + CW + '" height="12"/>';
+    if (fr[j].fired) {
+      cx = X0 + j * CW + CW / 2;
+      s += '<polygon points="' + cx + ',106 ' + (cx - 6) + ',118 ' + (cx + 6) + ',118" fill="var(--signal)"/>';
+      s += '<text class="cap" x="' + Math.max(52, Math.min(716, cx)) + '" y="132" text-anchor="middle">ACTION: ' + fr[j].fired + '</text>';
+    }
+  }
+  cx = X0 + f.i * CW + CW / 2;
+  s += '<line class="vec" x1="' + cx + '" y1="30" x2="' + cx + '" y2="104"/>';
+  s += '<text class="ptitle" x="24" y="158">3. Counter: same label in a row (candidate_label, frame_count)</text>';
+  for (k = 0; k < st3.hold; k++) s += '<rect class="' + (k < f.count && f.cand ? 'l-' + f.cand : 'cnt') + '" x="' + (X0 + k * 32) + '" y="166" width="28" height="22" rx="3"/>';
+  s += '<text class="psub" x="' + (X0 + st3.hold * 32 + 10) + '" y="181">' + (f.cand ? 'candidate = ' + f.cand + ', count = ' + f.count + ' of ' + st3.hold : 'no candidate, count = 0') + '</text>';
+  var rem = Math.max(0, f.lockedUntil - f.i), frac = f.cd ? Math.min(1, rem / f.cd) : 0;
+  s += '<text class="ptitle" x="24" y="212">4. Cooldown time remaining</text>';
+  s += '<rect class="cnt" x="24" y="220" width="360" height="14" rx="3"/><rect fill="var(--signal)" opacity=".75" x="24" y="220" width="' + (360 * frac) + '" height="14" rx="3"/>';
+  s += '<text class="psub" x="396" y="231">' + (rem > 0 ? 'locked: ' + fmt(rem / FPS, 2) + ' s left' : 'not locked') + '</text>';
+  $('svg3').innerHTML = s;
+}
+
+function render3(f) {
+  var t = text3(f);
+  code3.set(f.hl, [], true);
+  $('title3').textContent = t.title; $('desc3').innerHTML = t.desc; $('calc3').innerHTML = t.calc;
+  draw3(f);
+  $('fired3').textContent = 'Actions confirmed so far: ' + f.n + '.';
+}
+var stepper3 = makeStepper('p3', render3);
+function sync3() { $('thr3-hold-v').textContent = st3.hold; $('thr3-cool-v').textContent = fmt(st3.cool, 1) + ' s'; }
+function rebuild3() { sync3(); stepper3.setFrames(buildFrames3(), 'keep'); }
+$('thr3-hold').addEventListener('input', function () { st3.hold = parseInt(this.value, 10); rebuild3(); });
+$('thr3-cool').addEventListener('input', function () { st3.cool = parseFloat(this.value); rebuild3(); });
+rebuild3();
+
+/* ============================================================
+   Tabs and keyboard shortcuts
+   ============================================================ */
+var active = 'part1';
+Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+  t.addEventListener('click', function () {
+    active = t.getAttribute('data-tab');
+    stepper1.stop(); stepper2.stop(); stepper3.stop();
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (o) { o.setAttribute('aria-selected', o === t ? 'true' : 'false'); });
+    $('part1').hidden = active !== 'part1';
+    $('part2').hidden = active !== 'part2';
+    $('part3').hidden = active !== 'part3';
+  });
+});
+document.addEventListener('keydown', function (e) {
+  var tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+  if (tag === 'input' || tag === 'select' || tag === 'textarea' || (e.target && e.target.getAttribute && e.target.getAttribute('data-h') !== null)) return;
+  var stp = active === 'part1' ? stepper1 : (active === 'part2' ? stepper2 : stepper3);
+  if (e.key === 'ArrowRight') { stp.next(); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft') { stp.prev(); e.preventDefault(); }
+});
+
+/* test hooks (harmless in the browser) */
+window.__walkthrough = { stepper1: stepper1, stepper2: stepper2, stepper3: stepper3, buildFrames3: buildFrames3, st: st, buildFrames2: buildFrames2, extractFeatures: extractFeatures, presetFeatures: presetFeatures, D1: D1 };
+})();
+</script>
+</body>
+</html>
