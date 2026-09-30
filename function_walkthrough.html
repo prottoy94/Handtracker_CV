@@ -151,6 +151,7 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-co
 .foot{color:var(--muted);font-size:13px;margin-top:22px;max-width:860px}
 .l-pinch{fill:var(--teal)}.l-open{fill:var(--blue)}.l-idle{fill:var(--axis)}
 .cnt{fill:var(--panel);stroke:var(--rule)}.lockband{fill:var(--axis);opacity:.45}
+.mem .chip{min-width:112px}
 </style>
 </head>
 <body>
@@ -340,18 +341,19 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-co
 <!-- ===================== PART 3 ===================== -->
 <section id="part3" role="tabpanel" aria-labelledby="tab-part3" hidden>
   <div class="intro">
-    <h2>Part 3: from a shaky label to one confirmed gesture</h2>
-    <p>The camera sends about 30 pictures (<b>frames</b>) per second, and Part 2 labels every one of them. A real hand wobbles, so the labels can flicker: <i>pinch, pinch, open, pinch</i>. If every label triggered an action, the computer would react wildly. The <b>Debouncer</b> adds two safety rules. <b>Hold:</b> the same gesture must appear in a row for <code>hold_frames</code> frames. <b>Cooldown:</b> after one gesture is confirmed, everything is ignored for <code>cooldown_seconds</code>. In the finished program each frame will flow through <code>extract_features</code>, then <code>predict</code>, then <code>update</code>. Here, the labels below are a scripted example, and time is simulated at 30 frames per second.</p>
+    <h2>Part 3: the Debouncer, one line at a time</h2>
+    <p>The classifier gives one label per camera frame, and labels can flicker. The <b>Debouncer</b> turns that noisy stream into a single confirmed gesture using two rules: the same gesture must appear <code>hold_frames</code> times <b>in a row</b>, and after a confirmation everything is ignored for <code>cooldown_seconds</code> (the <b>break</b>). Here, <b>each step runs exactly one line of <code>update</code></b>. The highlighted line on the left is the line being executed, the memory cards show every value the Debouncer holds, and the table at the bottom records what came out of each frame. To keep the example short, <code>hold_frames</code> is 3, and one frame arrives every 0.5 s (a real camera is about 0.03 s).</p>
   </div>
   <div class="toolbar">
     <button id="p3-reset" type="button">Reset</button>
     <button id="p3-prev" type="button">Previous</button>
     <button id="p3-play" type="button" class="primary">Play</button>
-    <button id="p3-next" type="button">Next</button>
+    <button id="p3-next" type="button">Next line</button>
+    <button id="p3-nextframe" type="button">Next frame</button>
     <label class="spd">Speed
-      <select id="p3-speed"><option value="600">Slow</option><option value="280" selected>Normal</option><option value="110">Fast</option></select>
+      <select id="p3-speed"><option value="2200">Slow</option><option value="1400" selected>Normal</option><option value="500">Fast</option></select>
     </label>
-    <input id="p3-scrub" type="range" min="0" max="79" value="0" aria-label="Jump to a frame">
+    <input id="p3-scrub" type="range" min="0" max="79" value="0" aria-label="Jump to a step">
     <span id="p3-count" class="count">Step 1 of 80</span>
   </div>
   <div class="grid2">
@@ -362,22 +364,34 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-co
       </div>
     </div>
     <div class="stack">
+      <div class="box mem">
+        <h3>Memory: what the Debouncer holds right now</h3>
+        <div id="mem3" class="chips"></div>
+        <p class="note">A red-edged card was just changed by the highlighted line. The last three cards (<code>candidate_label</code>, <code>frame_count</code>, <code>locked_until_time</code>) belong to the object and survive between frames. <code>label</code>, <code>current_time</code> and <code>confirmed_label</code> exist only during one call of <code>update</code>.</p>
+      </div>
       <figure class="box figure" style="margin:0">
-        <svg id="svg3" viewBox="0 0 768 250" role="img" aria-label="Timeline of classifier labels, cooldown lock, confirmed actions, frame counter and cooldown remaining"></svg>
-        <figcaption>One step is one camera frame. <span id="fired3"></span>
-          <div class="legend"><span><i style="background:var(--teal)"></i>pinch</span><span><i style="background:var(--blue)"></i>open</span><span><i style="background:var(--axis)"></i>idle</span></div>
-        </figcaption>
+        <svg id="svg3" viewBox="0 0 768 262" role="img" aria-label="Frames with their labels, the break period, the counter and the time left in the break"></svg>
       </figure>
       <div class="box now"><h3 id="title3"></h3><p id="desc3" aria-live="polite"></p></div>
-      <div class="box"><h3>Calculation for this frame</h3><pre id="calc3" class="calc"></pre></div>
+      <div class="box"><h3>Calculation for this line</h3><pre id="calc3" class="calc"></pre></div>
     </div>
+  </div>
+  <div class="box" style="margin-top:14px">
+    <h3>Result of every frame (what the rest of the program would receive)</h3>
+    <div class="tbl-wrap">
+      <table class="data">
+        <thead><tr><th>Frame</th><th>Time (s)</th><th class="l">Label in</th><th class="l">What happened</th><th>frame_count after</th><th class="l">update returned</th></tr></thead>
+        <tbody id="tbody3"></tbody>
+      </table>
+    </div>
+    <p class="note">Only a value other than <code>None</code> would trigger an action. Look at frames 2 to 4: the count reached 2, then the stray <b>open</b> destroyed the progress, so nothing fired.</p>
   </div>
   <div class="box lab" style="margin-top:14px">
     <h3>Try it: change the two settings</h3>
-    <p class="sub">A larger <code>hold_frames</code> needs a longer, steadier gesture. A longer cooldown leaves more frames ignored (grey band). Notice how the flickers at frames 10 to 13 never reach the hold count.</p>
+    <p class="sub">Moving a slider replays the same 13 labels from the beginning. Try <code>hold_frames = 2</code> (the flicker now fires) and a long <code>cooldown_seconds</code> (later gestures get swallowed by the break).</p>
     <div class="thr">
-      <div class="sl"><label for="thr3-hold">hold_frames</label><input id="thr3-hold" type="range" min="2" max="12" step="1" value="8"><output id="thr3-hold-v"></output></div>
-      <div class="sl"><label for="thr3-cool">cooldown_seconds</label><input id="thr3-cool" type="range" min="0.5" max="2.5" step="0.1" value="1.5"><output id="thr3-cool-v"></output></div>
+      <div class="sl"><label for="thr3-hold">hold_frames</label><input id="thr3-hold" type="range" min="2" max="5" step="1" value="3"><output id="thr3-hold-v"></output></div>
+      <div class="sl"><label for="thr3-cool">cooldown_seconds</label><input id="thr3-cool" type="range" min="0.5" max="3" step="0.5" value="1.5"><output id="thr3-cool-v"></output></div>
     </div>
   </div>
 </section>
@@ -1220,11 +1234,10 @@ Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (b) 
 })();
 
 /* ============================================================
-   Part 3: Debouncer (mirrors smoothing.py; time is simulated)
+   Part 3: Debouncer, executed one line per step (mirrors smoothing.py)
    ============================================================ */
-var FPS = 30, SEQ = [], st3 = { hold: 8, cool: 1.5 };
-(function () { function add(l, n) { for (var k = 0; k < n; k++) SEQ.push(l); }
-  add('idle',4); add('pinch',6); add('idle',1); add('pinch',2); add('open',1); add('pinch',27); add('idle',10); add('open',29); })();
+var LAB3 = ['idle','pinch','pinch','open','pinch','pinch','pinch','pinch','pinch','pinch','open','open','open'];
+var GAP3 = 0.5, st3 = { hold: 3, cool: 1.5 }, ROWS3 = [];
 var CODE3 = [
 'import time','','',
 'class Debouncer:',
@@ -1266,89 +1279,161 @@ var CODE3 = [
 '        return None'
 ];
 var code3 = new CodeView($('code3'), CODE3);
+function q3(v) { return v === null ? 'None' : "'" + v + "'"; }
 
 function buildFrames3() {
-  var cd = Math.round(st3.cool * FPS), cand = null, count = 0, lockedUntil = 0, n = 0, out = [], i;
-  for (i = 0; i < SEQ.length; i++) {
-    var label = SEQ[i], kind, hl, fired = null, pc = cand, pn = count, lb = lockedUntil;
-    if (i < lockedUntil) { kind = 'locked'; cand = null; count = 0; hl = [18,20,21,22]; }
-    else if (label === 'idle') { kind = 'idle'; cand = null; count = 0; hl = [18,20,24,25,26]; }
-    else {
-      if (label === cand) { count += 1; kind = 'same'; hl = [18,20,24,28,29,34]; }
-      else { cand = label; count = 1; kind = 'new'; hl = [18,20,24,28,30,31,32,34]; }
-      if (count >= st3.hold) { fired = label; n += 1; lockedUntil = i + cd; hl = hl.concat([35,36,37,38]); }
-      else { hl = hl.concat([40]); }
-    }
-    out.push({ i: i, label: label, kind: kind, hl: hl, fired: fired, pc: pc, pn: pn, lb: lb, cand: cand, count: count, lockedUntil: lockedUntil, cd: cd, n: n });
-    if (fired) { cand = null; count = 0; }
+  var H = st3.hold, C = st3.cool, m = { cand: null, count: 0, lock: 0, from: 0 };
+  var steps = [], f, label, t, ctx, path;
+  ROWS3 = [];
+  function push(hl, title, desc, calc, ch, ret) {
+    steps.push({ f: f, label: label, t: t, hl: hl, title: title, desc: desc, calc: calc, ch: ch || [], ret: ret,
+      tRead: ctx.tRead, conf: ctx.conf, cand: m.cand, count: m.count, lock: m.lock, from: m.from, done: ROWS3.length });
   }
-  return out;
-}
-
-function text3(f) {
-  var t = f.i / FPS, L = "'" + f.label + "'", h = st3.hold, d, c;
-  var now = 'current_time = ' + f.i + ' / ' + FPS + ' = ' + fmt(t, 2) + ' s';
-  var lk = 'locked_until_time = ' + fmt(f.lb / FPS, 2) + ' s';
-  var title = 'Frame ' + f.i + ' (t = ' + fmt(t, 2) + ' s): classifier says ' + L;
-  if (f.kind === 'locked') {
-    d = 'The Debouncer is in its <b>cooldown</b>. The camera still reports ' + esc(L) + ', but line 20 is true, so the counter is wiped and <code>None</code> comes back. Nothing can be confirmed until the lock ends.';
-    c = esc(now) + '\n' + esc(lk) + '\n' + hi(fmt(t, 2) + ' < ' + fmt(f.lb / FPS, 2)) + ' is True: reset() and return None';
-  } else if (f.kind === 'idle') {
-    d = 'The hand shows no gesture (<b>idle</b>). Counting stops and starts over from zero, so one flicker in the middle of a gesture cancels the attempt.';
-    c = esc(now) + '\n' + esc(lk) + '\nnot locked (' + fmt(t, 2) + ' < ' + fmt(f.lb / FPS, 2) + ' is False)\n' + hi('label == "idle"') + ' is True: reset() and return None';
-  } else {
-    var head = esc(now) + '\n' + esc(lk) + '\nnot locked (' + fmt(t, 2) + ' < ' + fmt(f.lb / FPS, 2) + ' is False)\n';
-    var step = f.kind === 'same' ? 'label equals candidate_label, so frame_count: ' + f.pn + ' to ' + f.count : 'label differs from candidate_label (' + (f.pc || 'None') + '), so candidate = ' + f.label + ', frame_count = 1';
-    var chk = (f.fired ? f.count : f.count) + ' >= ' + h;
-    if (f.fired) {
-      d = 'The count reached <b>' + h + '</b>. The gesture was held long enough, so <code>update</code> returns ' + esc(L) + '. <b>This is the only moment an action would run.</b> The lock now lasts ' + fmt(st3.cool, 1) + ' s.';
-      c = head + esc(step) + '\n' + hi(chk) + ' is True: confirmed_label = ' + esc(L) + '\nlocked_until_time = ' + fmt(t, 2) + ' + ' + fmt(st3.cool, 1) + ' = ' + fmt(t + st3.cool, 2) + ' s, then return ' + esc(L);
+  function fin(ret, p, hl, title, desc, calc) {
+    ROWS3.push({ t: t, label: label, path: p, count: m.count, ret: ret });
+    push(hl, title, desc, calc, ['ret'], ret);
+  }
+  for (f = 0; f < LAB3.length; f++) {
+    label = LAB3[f]; t = round4((f + 1) * GAP3); ctx = { tRead: false, conf: null };
+    var n = f + 1, L = q3(label), locked, same, enough, old;
+    push([17], 'Frame ' + n + ': update(' + L + ') is called',
+      'The main loop takes the newest frame, the classifier says <b>' + esc(L) + '</b>, and that label is passed into <code>update</code>. Inside the function the variable <code>label</code> now holds ' + esc(L) + '.',
+      'label = ' + esc(L), ['label']);
+    ctx.tRead = true;
+    push([18], 'Read the clock',
+      '<code>time.monotonic()</code> returns the current time in seconds. In this example frame ' + n + ' arrives at <b>' + fmt(t, 1) + ' s</b>. The value is stored in <code>current_time</code> for the rest of this call.',
+      'current_time = ' + hi(fmt(t, 1)), ['time']);
+    locked = t < m.lock;
+    push([20], 'Question 1: are we inside the break?',
+      'Compare the clock with <code>locked_until_time</code>. ' + (locked ? 'The clock is <b>earlier</b>, so the break is still running.' : (m.lock === 0 ? 'No break has started yet (0.0 is long in the past), so we continue.' : (t === m.lock ? 'The two numbers are <b>equal</b>. "Smaller than" is False for equal numbers, so the break has just ended and we continue.' : 'The clock is <b>not earlier</b>, so the break is over and we continue.'))),
+      esc(fmt(t, 1) + ' < ' + fmt(m.lock, 1)) + '  is  ' + hi(locked ? 'True' : 'False'));
+    if (locked) {
+      m.cand = null; m.count = 0;
+      push([21], 'reset(): forget the current count',
+        'The body of <code>reset</code> (lines 14 and 15) runs: <code>candidate_label</code> becomes None and <code>frame_count</code> becomes 0. During a break nothing is allowed to accumulate.',
+        'candidate_label = None\nframe_count = 0', ['cand', 'count']);
+      fin('None', 'locked, ignored', [22], 'return None: nothing confirmed',
+        'The function ends here and gives back <b>None</b>. The gesture ' + esc(L) + ' is being shown, but it is ignored. Time left in the break: <b>' + fmt(m.lock - t, 1) + ' s</b>.', 'returns  ' + hi('None'));
+      continue;
+    }
+    push([24], 'Question 2: is the hand idle?',
+      '<code>"idle"</code> means no gesture. ' + (label === 'idle' ? 'This frame <b>is</b> idle.' : 'This frame is a real gesture, so we continue.'),
+      esc(L + ' == \'idle\'') + '  is  ' + hi(label === 'idle' ? 'True' : 'False'));
+    if (label === 'idle') {
+      m.cand = null; m.count = 0;
+      push([25], 'reset(): forget the current count',
+        'An idle frame breaks any streak. Even one idle frame in the middle of a gesture cancels the attempt; that is the flicker protection.',
+        'candidate_label = None\nframe_count = 0', ['cand', 'count']);
+      fin('None', 'idle, counter reset', [26], 'return None: nothing confirmed', 'The function ends and gives back <b>None</b>.', 'returns  ' + hi('None'));
+      continue;
+    }
+    same = label === m.cand;
+    push([28], 'Question 3: same gesture as before?',
+      'Compare this frame\'s label with <code>candidate_label</code>, the gesture we have been counting. ' + (same ? 'They match, so the streak continues.' : 'They differ, so any old streak is over.'),
+      esc(L + ' == ' + q3(m.cand)) + '  is  ' + hi(same ? 'True' : 'False'));
+    if (same) {
+      old = m.count; m.count += 1;
+      push([29], 'Add one to the streak',
+        'The same gesture appeared again, so the streak grows from ' + old + ' to <b>' + m.count + '</b>.',
+        'frame_count = ' + old + ' + 1 = ' + hi(String(m.count)), ['count']);
     } else {
-      d = f.kind === 'same' ? 'The same gesture again, so the counter grows to <b>' + f.count + ' of ' + h + '</b>. Not enough yet, so <code>None</code> is returned.' : 'A <b>different</b> label than before, so the counter restarts. ' + esc(L) + ' becomes the candidate with count 1 (needs ' + h + ').';
-      c = head + esc(step) + '\n' + hi(chk) + ' is False: return None';
+      push([30], 'else: start a new streak',
+        'Because the labels differ, Python jumps into the <code>else</code> branch (the next two lines).', 'the if-condition was False, so run the else block');
+      m.cand = label;
+      push([31], 'Remember the new gesture', '<code>candidate_label</code> becomes ' + esc(L) + '. The old candidate (' + esc(q3(steps[steps.length - 1].cand)) + ') is forgotten.', 'candidate_label = ' + hi(L), ['cand']);
+      m.count = 1;
+      push([32], 'Count starts at 1', 'This is the first frame of the new streak, so <code>frame_count</code> is 1.', 'frame_count = ' + hi('1'), ['count']);
+    }
+    enough = m.count >= H;
+    push([34], 'Question 4: held long enough?',
+      'Is the streak at least <code>hold_frames</code> (' + H + ') long? ' + (enough ? '<b>Yes.</b> The gesture is confirmed.' : '<b>Not yet.</b> ' + m.count + ' of ' + H + ' frames so far.'),
+      esc(m.count + ' >= ' + H) + '  is  ' + hi(enough ? 'True' : 'False'));
+    if (enough) {
+      ctx.conf = m.cand;
+      push([35], 'Save the winner', 'The confirmed gesture is copied into <code>confirmed_label</code> <b>before</b> <code>reset()</code> erases <code>candidate_label</code>.', 'confirmed_label = ' + hi(q3(m.cand)), ['conf']);
+      m.lock = round4(t + C); m.from = t;
+      push([36], 'Start the break',
+        'The break lasts until <code>current_time + cooldown_seconds</code>. Until that time every frame is ignored (Question 1 will be True).',
+        'locked_until_time = ' + fmt(t, 1) + ' + ' + fmt(C, 1) + ' = ' + hi(fmt(m.lock, 1)), ['lock']);
+      m.cand = null; m.count = 0;
+      push([37], 'reset(): get ready for next time', 'The counter is cleared, so the next confirmation needs a full new streak. Without this, the very next frame could confirm again.', 'candidate_label = None\nframe_count = 0', ['cand', 'count']);
+      fin(ctx.conf, 'CONFIRMED, break until ' + fmt(m.lock, 1) + ' s', [38], 'return confirmed_label: <b>ACTION</b>',
+        'This is the only line in the whole class that returns something other than None. The rest of the program would now run the action for ' + esc(q3(ctx.conf)) + '.', 'returns  ' + hi(q3(ctx.conf)));
+    } else {
+      fin('None', (same ? 'same gesture, ' : 'new gesture, ') + 'count ' + m.count + ' of ' + H, [40], 'return None: keep waiting',
+        'Not enough frames yet, so nothing is confirmed. The memory (<code>' + esc(L) + '</code>, count ' + m.count + ') is kept for the next frame.', 'returns  ' + hi('None'));
     }
   }
-  return { title: title, desc: d, calc: c };
+  return steps;
 }
 
-function draw3(f) {
-  var X0 = 24, CW = 9, fr = stepper3.frames, s = '', j, k, cx;
-  s += '<rect class="pl" x="4" y="4" width="760" height="242" rx="4"/>';
-  s += '<text class="ptitle" x="24" y="26">1. Label the classifier gave each frame</text>';
-  for (j = 0; j < SEQ.length; j++) s += '<rect class="l-' + SEQ[j] + '" x="' + (X0 + j * CW) + '" y="34" width="' + (CW - 1) + '" height="24" opacity="' + (j <= f.i ? 1 : 0.22) + '"/>';
-  s += '<text class="ptitle" x="24" y="84">2. Cooldown lock (grey band) and confirmed actions (arrows)</text>';
-  for (j = 0; j <= f.i; j++) {
-    if (fr[j].kind === 'locked') s += '<rect class="lockband" x="' + (X0 + j * CW) + '" y="90" width="' + CW + '" height="12"/>';
-    if (fr[j].fired) {
-      cx = X0 + j * CW + CW / 2;
-      s += '<polygon points="' + cx + ',106 ' + (cx - 6) + ',118 ' + (cx + 6) + ',118" fill="var(--signal)"/>';
-      s += '<text class="cap" x="' + Math.max(52, Math.min(716, cx)) + '" y="132" text-anchor="middle">ACTION: ' + fr[j].fired + '</text>';
+function draw3(s) {
+  var N = LAB3.length, W = 54, X0 = 34, o = '', j, r, x, H = st3.hold, C = st3.cool;
+  function X(t) { return X0 + 27 + (t / GAP3 - 1) * W; }
+  o += '<rect class="pl" x="4" y="4" width="760" height="254" rx="4"/>';
+  o += '<text class="ptitle" x="24" y="24">Frames arriving one by one (each colored box is the label given by the classifier)</text>';
+  for (j = 0; j < N; j++) {
+    x = X0 + j * W;
+    o += '<rect class="l-' + LAB3[j] + '" x="' + x + '" y="34" width="' + (W - 4) + '" height="26" rx="3" opacity="' + (j <= s.f ? 1 : 0.25) + '"/>';
+    o += '<text class="cap" style="fill:#fff" x="' + (x + (W - 4) / 2) + '" y="51" text-anchor="middle">' + LAB3[j] + '</text>';
+    o += '<text class="tick" x="' + (x + (W - 4) / 2) + '" y="74" text-anchor="middle">t=' + fmt((j + 1) * GAP3, 1) + '</text>';
+    if (j < s.done) {
+      r = ROWS3[j];
+      o += r.ret === 'None' ? '<text class="psub" x="' + (x + (W - 4) / 2) + '" y="90" text-anchor="middle">None</text>'
+        : '<text class="cap" style="fill:var(--signal)" x="' + (x + (W - 4) / 2) + '" y="90" text-anchor="middle">' + r.ret + '!</text>';
     }
   }
-  cx = X0 + f.i * CW + CW / 2;
-  s += '<line class="vec" x1="' + cx + '" y1="30" x2="' + cx + '" y2="104"/>';
-  s += '<text class="ptitle" x="24" y="158">3. Counter: same label in a row (candidate_label, frame_count)</text>';
-  for (k = 0; k < st3.hold; k++) s += '<rect class="' + (k < f.count && f.cand ? 'l-' + f.cand : 'cnt') + '" x="' + (X0 + k * 32) + '" y="166" width="28" height="22" rx="3"/>';
-  s += '<text class="psub" x="' + (X0 + st3.hold * 32 + 10) + '" y="181">' + (f.cand ? 'candidate = ' + f.cand + ', count = ' + f.count + ' of ' + st3.hold : 'no candidate, count = 0') + '</text>';
-  var rem = Math.max(0, f.lockedUntil - f.i), frac = f.cd ? Math.min(1, rem / f.cd) : 0;
-  s += '<text class="ptitle" x="24" y="212">4. Cooldown time remaining</text>';
-  s += '<rect class="cnt" x="24" y="220" width="360" height="14" rx="3"/><rect fill="var(--signal)" opacity=".75" x="24" y="220" width="' + (360 * frac) + '" height="14" rx="3"/>';
-  s += '<text class="psub" x="396" y="231">' + (rem > 0 ? 'locked: ' + fmt(rem / FPS, 2) + ' s left' : 'not locked') + '</text>';
-  $('svg3').innerHTML = s;
+  o += '<rect class="ring" x="' + (X0 + s.f * W - 2) + '" y="32" width="' + W + '" height="30" rx="4"/>';
+  o += '<text class="ptitle" x="24" y="112">Break period (grey band) and the clock (red line)</text>';
+  if (s.lock > 0) {
+    o += '<rect class="lockband" x="' + Math.max(X0, X(s.from)) + '" y="120" width="' + Math.max(0, X(s.lock) - Math.max(X0, X(s.from))) + '" height="12"/>';
+    o += '<text class="psub" x="' + X(s.lock) + '" y="146" text-anchor="middle">locked_until_time = ' + fmt(s.lock, 1) + '</text>';
+  }
+  if (s.tRead) o += '<line class="vec" x1="' + X(s.t) + '" y1="116" x2="' + X(s.t) + '" y2="136"/><text class="cap" x="' + X(s.t) + '" y="158" text-anchor="middle">now ' + fmt(s.t, 1) + '</text>';
+  o += '<text class="ptitle" x="24" y="182">Streak counter: same gesture in a row</text>';
+  for (j = 0; j < H; j++) o += '<rect class="' + (j < s.count && s.cand ? 'l-' + s.cand : 'cnt') + '" x="' + (X0 + j * 46) + '" y="190" width="40" height="20" rx="3"/>';
+  o += '<text class="psub" x="' + (X0 + H * 46 + 8) + '" y="204">' + (s.cand ? q3(s.cand) + ': ' + s.count + ' of ' + H : 'no candidate, count 0') + '</text>';
+  var rem = s.tRead ? Math.max(0, s.lock - s.t) : 0, fr = C ? Math.min(1, rem / C) : 0;
+  o += '<text class="ptitle" x="24" y="230">Time left in the break</text>';
+  o += '<rect class="cnt" x="24" y="236" width="300" height="12" rx="3"/><rect fill="var(--signal)" opacity=".75" x="24" y="236" width="' + (300 * fr) + '" height="12" rx="3"/>';
+  o += '<text class="psub" x="336" y="246">' + (rem > 0 ? fmt(rem, 1) + ' s left' : 'not locked') + '</text>';
+  $('svg3').innerHTML = o;
 }
 
-function render3(f) {
-  var t = text3(f);
-  code3.set(f.hl, [], true);
-  $('title3').textContent = t.title; $('desc3').innerHTML = t.desc; $('calc3').innerHTML = t.calc;
-  draw3(f);
-  $('fired3').textContent = 'Actions confirmed so far: ' + f.n + '.';
+function mem3(s) {
+  var items = [['label', 'label', q3(s.label)], ['time', 'current_time', s.tRead ? fmt(s.t, 1) + ' s' : '\u2014'], ['conf', 'confirmed_label', s.conf === null ? '\u2014' : q3(s.conf)], ['ret', 'returned', s.ret === undefined ? '\u2014' : (s.ret === 'None' ? 'None' : q3(s.ret))],
+    ['cand', 'candidate_label', q3(s.cand)], ['count', 'frame_count', String(s.count)], ['lock', 'locked_until_time', fmt(s.lock, 1) + ' s']];
+  $('mem3').innerHTML = items.map(function (it) { return '<span class="chip' + (s.ch.indexOf(it[0]) >= 0 ? ' fresh' : '') + '"><i>' + it[1] + '</i><b>' + esc(it[2]) + '</b></span>'; }).join('');
+}
+
+function table3(s) {
+  var o = '', j, r;
+  for (j = 0; j <= s.f; j++) {
+    if (j < s.done) {
+      r = ROWS3[j];
+      o += '<tr' + (j === s.f ? ' class="cur"' : '') + '><td>' + (j + 1) + '</td><td>' + fmt(r.t, 1) + '</td><td class="l">' + r.label + '</td><td class="l">' + esc(r.path) + '</td><td>' + r.count + '</td><td class="l">' + (r.ret === 'None' ? 'None' : '<b>' + r.ret + '</b>') + '</td></tr>';
+    } else {
+      o += '<tr class="cur"><td>' + (j + 1) + '</td><td>' + (s.tRead ? fmt(s.t, 1) : '\u2026') + '</td><td class="l">' + s.label + '</td><td class="l">in progress\u2026</td><td>' + s.count + '</td><td class="l">\u2026</td></tr>';
+    }
+  }
+  $('tbody3').innerHTML = o;
+}
+
+function render3(s) {
+  code3.set(s.hl, [], true);
+  $('title3').innerHTML = s.title; $('desc3').innerHTML = s.desc; $('calc3').innerHTML = s.calc;
+  mem3(s); draw3(s); table3(s);
 }
 var stepper3 = makeStepper('p3', render3);
 function sync3() { $('thr3-hold-v').textContent = st3.hold; $('thr3-cool-v').textContent = fmt(st3.cool, 1) + ' s'; }
-function rebuild3() { sync3(); stepper3.setFrames(buildFrames3(), 'keep'); }
+function rebuild3() { sync3(); stepper3.setFrames(buildFrames3(), 'start'); }
 $('thr3-hold').addEventListener('input', function () { st3.hold = parseInt(this.value, 10); rebuild3(); });
 $('thr3-cool').addEventListener('input', function () { st3.cool = parseFloat(this.value); rebuild3(); });
+$('p3-nextframe').addEventListener('click', function () {
+  var fr = stepper3.frames, i = stepper3.index, cur = fr[i].f;
+  while (i < fr.length - 1 && fr[i].f === cur) i += 1;
+  var sc = $('p3-scrub'); sc.value = String(i); sc.dispatchEvent(new Event('input'));
+});
 rebuild3();
 
 /* ============================================================
