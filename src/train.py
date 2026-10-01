@@ -70,7 +70,7 @@ def main():
         return
 
     label_counts = count_labels(gesture_labels)
-    label_names = list(label_counts.keys())
+    label_names = list(label_counts.keys()) # Get the list of unique gesture labels from the label counts
 
     if len(label_names) < 2:
         print("Error: At least two different gestures are required for training.")
