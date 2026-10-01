@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Animated Walkthrough: extract_features, GestureClassifier and Debouncer</title>
+<title>Animated Walkthrough: extract_features, GestureClassifier, Debouncer, ActionRunner and main.py</title>
 <style>
 :root{
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
@@ -152,17 +152,20 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-co
 .l-pinch{fill:var(--teal)}.l-open{fill:var(--blue)}.l-idle{fill:var(--axis)}
 .cnt{fill:var(--panel);stroke:var(--rule)}.lockband{fill:var(--axis);opacity:.45}
 .mem .chip{min-width:112px}
+.hlrow{fill:var(--signal);opacity:.28}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <h1>How extract_features, GestureClassifier and Debouncer Work</h1>
+    <h1>How extract_features, GestureClassifier, Debouncer, ActionRunner and main.py Work</h1>
     <p>An animated, line-by-line walkthrough of the functions. Every number on this page is calculated live in your browser using the same formulas as your Python code, so you can follow each calculation with a pencil.</p>
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tab-part1" data-tab="part1" aria-selected="true" aria-controls="part1">Part 1: extract_features</button>
       <button class="tab" role="tab" id="tab-part2" data-tab="part2" aria-selected="false" aria-controls="part2">Part 2: GestureClassifier.predict</button>
       <button class="tab" role="tab" id="tab-part3" data-tab="part3" aria-selected="false" aria-controls="part3">Part 3: Debouncer.update</button>
+      <button class="tab" role="tab" id="tab-part4" data-tab="part4" aria-selected="false" aria-controls="part4">Part 4: ActionRunner.run</button>
+      <button class="tab" role="tab" id="tab-part5" data-tab="part5" aria-selected="false" aria-controls="part5">Part 5: main.py</button>
     </div>
   </div>
 </header>
@@ -392,6 +395,92 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-co
     <div class="thr">
       <div class="sl"><label for="thr3-hold">hold_frames</label><input id="thr3-hold" type="range" min="2" max="5" step="1" value="3"><output id="thr3-hold-v"></output></div>
       <div class="sl"><label for="thr3-cool">cooldown_seconds</label><input id="thr3-cool" type="range" min="0.5" max="3" step="0.5" value="1.5"><output id="thr3-cool-v"></output></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PART 4 ===================== -->
+<section id="part4" role="tabpanel" aria-labelledby="tab-part4" hidden>
+  <div class="intro">
+    <h2>Part 4: from a confirmed gesture to a real key press</h2>
+    <p>So far the program only <i>decides</i>. The Debouncer says "pinch was confirmed", but nothing on the computer has moved. <b>ActionRunner</b> is the hand that does something. It takes an <b>action name</b> (a text such as <code>"next_slide"</code>) and uses the <code>pyautogui</code> library to press the matching key, exactly as if you had typed it. It also adds three safety features: a master <b>on/off switch</b> (<code>actions_enabled</code>), the <b>fail-safe</b> (throw the mouse into the top-left corner to stop everything), and a warning for <b>unknown</b> action names. Choose a scenario, then step through it. Each step runs one line; on the right you see your "computer" react.</p>
+  </div>
+  <div class="toolbar" id="p4-scen">
+    <button type="button" data-sc="1" class="primary">1. Three normal actions</button>
+    <button type="button" data-sc="2">2. Unknown action</button>
+    <button type="button" data-sc="3">3. Fail-safe corner</button>
+    <button type="button" data-sc="4">4. On/off switch</button>
+  </div>
+  <div class="toolbar">
+    <button id="p4-reset" type="button">Reset</button>
+    <button id="p4-prev" type="button">Previous</button>
+    <button id="p4-play" type="button" class="primary">Play</button>
+    <button id="p4-next" type="button">Next line</button>
+    <label class="spd">Speed
+      <select id="p4-speed"><option value="2200">Slow</option><option value="1400" selected>Normal</option><option value="500">Fast</option></select>
+    </label>
+    <input id="p4-scrub" type="range" min="0" max="79" value="0" aria-label="Jump to a step">
+    <span id="p4-count" class="count">Step 1 of 80</span>
+  </div>
+  <div class="grid2">
+    <div class="stack">
+      <div class="box">
+        <h3>ActionRunner (actions.py)</h3>
+        <div id="code4" class="code" tabindex="0" aria-label="Source code of ActionRunner"></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="box mem">
+        <h3>Memory: the variables right now</h3>
+        <div id="mem4" class="chips"></div>
+        <p class="note"><code>actions_enabled</code> belongs to the object and is remembered between calls. <code>action_name</code> and <code>key_name</code> only exist while their function runs.</p>
+      </div>
+      <figure class="box figure" style="margin:0">
+        <svg id="svg4" viewBox="0 0 768 262" role="img" aria-label="Action name enters ActionRunner, passes its checks, pyautogui presses a key, and the screen reacts"></svg>
+      </figure>
+      <div class="box now"><h3 id="title4"></h3><p id="desc4" aria-live="polite"></p></div>
+      <div class="box"><h3>Calculation for this line</h3><pre id="calc4" class="calc"></pre></div>
+      <div class="box"><h3>Calls made so far and what they returned</h3><pre id="log4" class="calc"></pre></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PART 5 ===================== -->
+<section id="part5" role="tabpanel" aria-labelledby="tab-part5" hidden>
+  <div class="intro">
+    <h2>Part 5: main.py, a hand appears in front of the camera</h2>
+    <p><code>main.py</code> is the manager: it builds one object from every module, then repeats the same pipeline for every camera frame. In this simulation <b>you</b> are the person in front of the camera, and every step runs <b>one line</b> of the real <code>main.py</code>. The row of boxes shows the data moving through the pipeline, the dark window shows exactly what <code>cv2.imshow</code> would display, and the memory cards show the variables. <b>I have not seen your <code>config.py</code></b>, so the demo uses these assumed values: <code>HOLD_FRAMES = 2</code>, <code>COOLDOWN_SECONDS = 1.5</code>, <code>MIN_CONFIDENCE = 0.5</code>, <code>ACTION_MAP = {"pinch": "next_slide"}</code>, toggle key <code>t</code>, quit key <code>q</code>, thresholds 0.4 and 1.3. One frame arrives every 0.5 s to keep it short. <b>The story:</b> no hand, relaxed hand, a weak pinch, a real pinch held for two frames, then you press <code>t</code>, then you open your hand and press <code>q</code>.</p>
+  </div>
+  <div class="toolbar">
+    <button id="p5-reset" type="button">Reset</button>
+    <button id="p5-prev" type="button">Previous</button>
+    <button id="p5-play" type="button" class="primary">Play</button>
+    <button id="p5-next" type="button">Next line</button>
+    <button id="p5-nextframe" type="button">Next frame</button>
+    <label class="spd">Speed
+      <select id="p5-speed"><option value="2200">Slow</option><option value="1400" selected>Normal</option><option value="500">Fast</option></select>
+    </label>
+    <input id="p5-scrub" type="range" min="0" max="79" value="0" aria-label="Jump to a step">
+    <span id="p5-count" class="count">Step 1 of 80</span>
+  </div>
+  <figure class="box figure" style="margin:0 0 14px">
+    <svg id="svg5" viewBox="0 0 768 270" role="img" aria-label="Pipeline from camera to screen, the hand in front of the camera, and the video window"></svg>
+  </figure>
+  <div class="grid2">
+    <div class="stack">
+      <div class="box">
+        <h3>main.py</h3>
+        <div id="code5" class="code" tabindex="0" aria-label="Source code of main.py"></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="box now"><h3 id="title5"></h3><p id="desc5" aria-live="polite"></p></div>
+      <div class="box"><h3>Calculation for this line</h3><pre id="calc5" class="calc"></pre></div>
+      <div class="box mem">
+        <h3>Memory: the variables right now</h3>
+        <div id="mem5" class="chips"></div>
+        <p class="note">The last three cards live inside the Debouncer and the ActionRunner objects; <code>main</code> only reads them.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -1437,23 +1526,307 @@ $('p3-nextframe').addEventListener('click', function () {
 rebuild3();
 
 /* ============================================================
+   Part 4: ActionRunner, executed one line per step (mirrors actions.py)
+   ============================================================ */
+var CODE4 = [
+'import pyautogui','','',
+'pyautogui.FAILSAFE = True','pyautogui.PAUSE = 0.05','','',
+'class ActionRunner:',
+'    def __init__(self):',
+'        self.actions_enabled = True','',
+'    def is_enabled(self):',
+'        return self.actions_enabled','',
+'    def toggle_enabled(self):',
+'        if self.actions_enabled == True:',
+'            self.actions_enabled = False',
+'        else:',
+'            self.actions_enabled = True',
+'        return self.actions_enabled','',
+'    def press_key(self, key_name):',
+'        try:',
+'            pyautogui.press(key_name)',
+'            return True',
+'        except pyautogui.FailSafeException:',
+'            self.actions_enabled = False',
+'            print("Fail-safe triggered. Actions are now disabled.")',
+'            return False','',
+'    def run(self, action_name):',
+'        if self.actions_enabled == False:',
+'            return False','',
+'        if action_name == "next_slide":',
+'            return self.press_key("right")','',
+'        if action_name == "previous_slide":',
+'            return self.press_key("left")','',
+'        if action_name == "toggle_mute":',
+'            return self.press_key("volumemute")','',
+'        print("Unknown action: " + str(action_name))',
+'        return False'
+];
+var code4 = new CodeView($('code4'), CODE4), sc4 = 1;
+var SCEN4 = { 1: [['run','next_slide'],['run','previous_slide'],['run','toggle_mute']], 2: [['run','zoom_in']],
+  3: [['corner'],['run','next_slide'],['run','next_slide']], 4: [['toggle'],['run','next_slide'],['toggle'],['run','next_slide']] };
+function b4(v) { return v ? 'True' : 'False'; }
+
+function buildFrames4(sc) {
+  var S = { en: true, slide: 3, muted: false, pressed: null, err: false, corner: false, act: null, key: null, ret: undefined, stage: -1, log: [] }, steps = [];
+  function push(hl, title, desc, calc, ch) { var c = {}, k; for (k in S) c[k] = S[k]; c.hl = hl; c.title = title; c.desc = desc; c.calc = calc; c.ch = ch || []; steps.push(c); }
+  function logit(txt) { S.log = S.log.concat([txt]); }
+  function press(key) {
+    S.key = key;
+    push([22], 'press_key("' + key + '") starts', 'The helper that really presses keys is entered. The text <b>' + esc(key) + '</b> is stored in <code>key_name</code>.', 'key_name = ' + hi('"' + key + '"'), ['key']);
+    push([23], 'try: attempt the risky part', 'Python tries the next line. If it crashes with a <code>FailSafeException</code>, it jumps to <code>except</code> instead of stopping the whole program.', 'try:');
+    if (S.corner) {
+      S.err = true;
+      push([24], 'pyautogui.press: the fail-safe fires!', 'Before pressing, pyautogui checks the mouse. It is in the top-left corner, so pyautogui refuses and <b>raises FailSafeException</b>. The key is <b>not</b> pressed.', 'mouse = (0, 0)  means  ' + hi('FailSafeException'));
+      push([26], 'except: catch the emergency stop', 'Python jumps here because the exception matches. The program does not crash.', 'caught FailSafeException');
+      S.en = false;
+      push([27], 'Switch everything off', '<code>actions_enabled</code> becomes False, so later gestures can do nothing until someone switches it on again.', 'actions_enabled = ' + hi('False'), ['en']);
+      push([28], 'Tell the user', 'A message is printed in the terminal so you know why nothing happens anymore.', 'prints: Fail-safe triggered. Actions are now disabled.');
+      S.ret = false; push([29], 'return False', 'It reports failure: the key was not pressed.', 'returns  ' + hi('False'), ['ret']);
+      return false;
+    }
+    S.pressed = key;
+    if (key === 'right') S.slide = Math.min(5, S.slide + 1); else if (key === 'left') S.slide = Math.max(1, S.slide - 1); else S.muted = !S.muted;
+    push([24], 'pyautogui.press("' + key + '")', 'pyautogui presses <b>' + esc(key) + '</b> for real. Watch the keyboard and the screen on the right: ' + (key === 'right' ? 'the slide moves forward.' : key === 'left' ? 'the slide moves back.' : 'the sound is toggled.'), 'key pressed: ' + hi(key), ['pressed']);
+    S.ret = true; push([25], 'return True', 'It reports success.', 'returns  ' + hi('True'), ['ret']);
+    return true;
+  }
+  function run(a) {
+    var i, m, hit, ok, map = [['next_slide', 35, 36, 'right'], ['previous_slide', 38, 39, 'left'], ['toggle_mute', 41, 42, 'volumemute']], call = 'run("' + a + '")';
+    S.act = a; S.key = null; S.ret = undefined; S.pressed = null; S.err = false; S.stage = -1;
+    push([31], 'runner.' + call + ' is called', 'A confirmed action name, <b>' + esc(a) + '</b>, arrives and is stored in <code>action_name</code>.', 'action_name = ' + hi('"' + a + '"'), ['act']);
+    S.stage = 0;
+    push([32], 'Check 1: is the runner switched off?', S.en ? 'The switch is on, so we continue.' : 'The switch is <b>off</b>, so we must stop.', 'actions_enabled == False  is  ' + hi(b4(!S.en)));
+    if (!S.en) { S.ret = false; logit(call + '  returns  False'); push([33], 'return False: blocked', 'Nothing is pressed. This is the master off switch at work.', 'returns  ' + hi('False'), ['ret']); return; }
+    for (i = 0; i < 3; i++) {
+      m = map[i]; hit = a === m[0]; S.stage = i + 1;
+      push([m[1]], 'Check ' + (i + 2) + ': is it "' + m[0] + '"?', hit ? 'Yes, this is the one.' : 'No, try the next check.', esc('"' + a + '" == "' + m[0] + '"') + '  is  ' + hi(b4(hit)));
+      if (hit) {
+        push([m[2]], 'Call press_key("' + m[3] + '")', 'This action is translated into the keyboard key <b>' + m[3] + '</b>. <code>return</code> waits until <code>press_key</code> finishes.', 'self.press_key("' + m[3] + '")');
+        ok = press(m[3]); S.ret = ok; logit(call + '  returns  ' + b4(ok));
+        push([m[2]], 'run returns what press_key returned', 'The answer (' + b4(ok) + ') is passed straight back to whoever called <code>run</code>.', 'returns  ' + hi(b4(ok)), ['ret']);
+        return;
+      }
+    }
+    S.stage = 4; push([44], 'Nothing matched: print a warning', 'Every check said no, so the name is unknown. A warning is printed and no key is pressed.', 'prints: Unknown action: ' + esc(a));
+    S.ret = false; logit(call + '  returns  False'); push([45], 'return False', 'Failure is reported.', 'returns  ' + hi('False'), ['ret']);
+  }
+  function toggle() {
+    var was;
+    S.act = null; S.key = null; S.ret = undefined; S.stage = -1; S.pressed = null;
+    push([15], 'runner.toggle_enabled() is called', 'The on/off switch is about to be flipped.', 'actions_enabled is now ' + hi(b4(S.en)));
+    was = S.en;
+    push([16], 'Is the switch currently on?', was ? 'Yes, so it will be turned off.' : 'No, so it will be turned on (the else branch).', 'actions_enabled == True  is  ' + hi(b4(was)));
+    if (was) { S.en = false; push([17], 'Turn it off', '<code>actions_enabled</code> becomes False.', 'actions_enabled = ' + hi('False'), ['en']); }
+    else { push([18], 'else: turn it on', 'The condition was False, so the else block runs.', 'else:'); S.en = true; push([19], 'Turn it on', '<code>actions_enabled</code> becomes True.', 'actions_enabled = ' + hi('True'), ['en']); }
+    S.ret = S.en; logit('toggle_enabled()  returns  ' + b4(S.en));
+    push([20], 'Return the new state', 'The function reports the state after flipping, which the screen can display.', 'returns  ' + hi(b4(S.en)), ['ret']);
+  }
+  push([1], 'Import the tool', '<code>pyautogui</code> is a library that can press keys and move the mouse like a person sitting at the computer.', 'import pyautogui');
+  push([4], 'Turn on the fail-safe', 'With <code>FAILSAFE = True</code>, moving the mouse into the top-left corner of the screen makes every pyautogui command stop with an exception. It is your emergency brake.', 'pyautogui.FAILSAFE = ' + hi('True'));
+  push([5], 'Small pause after each command', 'After every command pyautogui waits 0.05 seconds, so the computer has time to react.', 'pyautogui.PAUSE = ' + hi('0.05'));
+  push([9], 'Create the runner', 'The program builds one <code>ActionRunner</code>. Its <code>__init__</code> runs once.', 'runner = ActionRunner()');
+  push([10], 'Start switched on', '<code>actions_enabled</code> is True, so gestures are allowed to do things.', 'actions_enabled = ' + hi('True'), ['en']);
+  SCEN4[sc].forEach(function (op) {
+    if (op[0] === 'run') run(op[1]);
+    else if (op[0] === 'toggle') toggle();
+    else { S.corner = true; S.act = null; S.key = null; S.ret = undefined; S.pressed = null; push([], 'You push the mouse into the top-left corner', 'No code runs now: <b>you</b> do something. You throw the mouse into the corner because the program is misbehaving.', 'mouse position = (0, 0)', ['corner']); }
+  });
+  return steps;
+}
+
+function draw4(s) {
+  var o = '', j, rows = ['actions_enabled == False ?', 'action_name == "next_slide" ?', 'action_name == "previous_slide" ?', 'action_name == "toggle_mute" ?', 'nothing matched: warn'], keys = [['left', '\u2190', 540, 40], ['right', '\u2192', 590, 40], ['volumemute', 'mute', 640, 60]], lab;
+  o += '<rect class="pl" x="4" y="4" width="760" height="254" rx="4"/>';
+  o += '<text class="ptitle" x="20" y="24">1. Action name</text><rect class="cnt" x="20" y="34" width="124" height="34" rx="4"/><text class="cap" x="82" y="56" text-anchor="middle">' + (s.act || '(none)') + '</text>';
+  o += '<line class="vec" x1="144" y1="51" x2="170" y2="51"/>';
+  o += '<text class="ptitle" x="176" y="24">2. ActionRunner</text><rect class="cnt" x="170" y="34" width="250" height="214" rx="6"/>';
+  o += '<rect x="184" y="44" width="56" height="22" rx="11" fill="' + (s.en ? 'var(--teal)' : 'var(--axis)') + '"/><circle cx="' + (s.en ? 229 : 195) + '" cy="55" r="9" fill="#fff"/>';
+  o += '<text class="psub" x="248" y="59">actions_enabled = ' + b4(s.en) + '</text>';
+  for (j = 0; j < 5; j++) {
+    lab = j < s.stage ? '\u2717' : (j === s.stage ? ((j === 4 || (j >= 1 && s.key !== null) || (j === 0 && !s.en && s.ret !== undefined)) ? '\u2713' : '?') : '');
+    o += '<rect x="184" y="' + (84 + j * 32) + '" width="222" height="26" rx="3" class="' + (j === s.stage ? 'hlrow' : 'cnt') + '"/>';
+    o += '<text class="psub" x="192" y="' + (101 + j * 32) + '">' + rows[j] + '</text><text class="cap" x="398" y="' + (101 + j * 32) + '" text-anchor="end">' + lab + '</text>';
+  }
+  o += '<line class="vec" x1="420" y1="125" x2="446" y2="125"/>';
+  o += '<text class="ptitle" x="446" y="24">3. pyautogui</text><rect class="cnt" x="446" y="34" width="84" height="214" rx="6"' + (s.err ? ' style="stroke:var(--signal);stroke-width:2"' : '') + '/>';
+  o += '<text class="psub" x="452" y="80">' + (s.key ? 'press("' + s.key + '")' : 'waiting') + '</text>';
+  o += '<text class="psub" x="452" y="120">mouse:</text><text class="cap" x="452" y="138" style="fill:' + (s.corner ? 'var(--signal)' : 'var(--ink)') + '">' + (s.corner ? 'CORNER!' : 'normal') + '</text>';
+  if (s.err) o += '<text class="cap" x="452" y="190" style="fill:var(--signal)">Fail-</text><text class="cap" x="452" y="206" style="fill:var(--signal)">Safe!</text>';
+  o += '<line class="vec" x1="530" y1="125" x2="540" y2="125"/>';
+  o += '<text class="ptitle" x="540" y="24">4. Your computer</text>';
+  keys.forEach(function (k) { o += '<rect x="' + k[2] + '" y="34" width="' + k[3] + '" height="30" rx="4" ' + (s.pressed === k[0] ? 'fill="var(--signal)"' : 'class="cnt"') + '/><text class="cap" x="' + (k[2] + k[3] / 2) + '" y="54" text-anchor="middle" style="fill:' + (s.pressed === k[0] ? '#fff' : 'var(--ink)') + '">' + k[1] + '</text>'; });
+  o += '<rect class="cnt" x="540" y="84" width="210" height="164" rx="6"/><text class="ptitle" x="645" y="112" text-anchor="middle">Slide ' + s.slide + ' of 5</text>';
+  for (j = 0; j < 5; j++) o += '<circle cx="' + (585 + j * 20) + '" cy="140" r="6" fill="' + (j + 1 === s.slide ? 'var(--signal)' : 'var(--axis)') + '"/>';
+  o += '<text class="cap" x="645" y="196" text-anchor="middle" style="fill:' + (s.muted ? 'var(--signal)' : 'var(--ink)') + '">Sound: ' + (s.muted ? 'MUTED' : 'on') + '</text>';
+  $('svg4').innerHTML = o;
+}
+
+function render4(s) {
+  code4.set(s.hl, [], true);
+  $('title4').innerHTML = s.title; $('desc4').innerHTML = s.desc; $('calc4').innerHTML = s.calc;
+  $('log4').textContent = s.log.length ? s.log.join('\n') : '(no call has finished yet)';
+  var it = [['en', 'actions_enabled', b4(s.en)], ['act', 'action_name', s.act === null ? '\u2014' : '"' + s.act + '"'], ['key', 'key_name', s.key === null ? '\u2014' : '"' + s.key + '"'], ['ret', 'returned', s.ret === undefined ? '\u2014' : b4(s.ret)]];
+  $('mem4').innerHTML = it.map(function (x) { return '<span class="chip' + (s.ch.indexOf(x[0]) >= 0 ? ' fresh' : '') + '"><i>' + x[1] + '</i><b>' + esc(x[2]) + '</b></span>'; }).join('');
+  draw4(s);
+}
+var stepper4 = makeStepper('p4', render4);
+$('p4-scen').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  sc4 = parseInt(b.getAttribute('data-sc'), 10);
+  Array.prototype.forEach.call($('p4-scen').children, function (x) { x.classList.toggle('primary', x === b); });
+  stepper4.setFrames(buildFrames4(sc4), 'start');
+});
+stepper4.setFrames(buildFrames4(1), 'start');
+
+/* ============================================================
+   Part 5: main.py, one line per step (modules are summarised)
+   ============================================================ */
+var CODE5 = ["import cv2", "", "import config", "from src.hand_tracker import HandTracker", "from src.features import extract_features", "from src.classifier import GestureClassifier", "from src.smoothing import Debouncer", "from src.actions import ActionRunner", "", "", "def draw_text(frame, text, x, y, color):", "    cv2.putText(", "        frame,", "        text,", "        (x, y),", "        cv2.FONT_HERSHEY_SIMPLEX,", "        0.7,", "        color,", "        2,", "    )", "", "", "def main():", "    tracker = HandTracker(", "        camera_index=config.CAMERA_INDEX,", "        max_hands=config.MAX_HANDS,", "        detection_confidence=config.DETECTION_CONFIDENCE,", "        tracking_confidence=config.TRACKING_CONFIDENCE,", "    )", "", "    classifier = GestureClassifier(", "        config.PINCH_DISTANCE_THRESHOLD,", "        config.OPEN_DISTANCE_THRESHOLD,", "    )", "", "    debouncer = Debouncer(config.HOLD_FRAMES, config.COOLDOWN_SECONDS)", "    runner = ActionRunner()", "", "    if config.START_WITH_ACTIONS_ENABLED == False:", "        runner.toggle_enabled()", "", "    if tracker.is_camera_open() == False:", "        print(\"Error: The webcam could not be opened.\")", "        return", "", "    print(\"Gesture controller started.\")", "    print(\"Press '\" + config.TOGGLE_ACTIONS_KEY + \"' in the video window to switch actions on or off.\")", "    print(\"Press '\" + config.QUIT_KEY + \"' in the video window to quit.\")", "", "    last_confirmed_text = \"none\"", "", "    while True:", "        frame = tracker.read_frame()", "", "        if frame is None:", "            print(\"Error: A frame could not be read from the webcam.\")", "            break", "", "        landmarks = tracker.find_landmarks(frame)", "", "        gesture_label = \"idle\"", "        confidence_score = 0.0", "", "        if landmarks is not None:", "            tracker.draw_hand(frame)", "            feature_list = extract_features(landmarks)", "            gesture_label, confidence_score = classifier.predict(feature_list)", "", "            if confidence_score < config.MIN_CONFIDENCE:", "                gesture_label = \"idle\"", "", "        confirmed_gesture = debouncer.update(gesture_label)", "", "        if confirmed_gesture is not None:", "            if confirmed_gesture in config.ACTION_MAP:", "                action_name = config.ACTION_MAP[confirmed_gesture]", "                runner.run(action_name)", "                last_confirmed_text = confirmed_gesture + \" -> \" + action_name", "            else:", "                last_confirmed_text = confirmed_gesture + \" (no action assigned)\"", "", "        if landmarks is None:", "            gesture_text = \"Gesture: no hand detected\"", "        else:", "            gesture_text = \"Gesture: \" + gesture_label + \" (\" + str(round(confidence_score, 2)) + \")\"", "", "        if debouncer.candidate_label is None:", "            holding_text = \"Holding: -\"", "        else:", "            holding_text = \"Holding: \" + debouncer.candidate_label + \" \" + str(debouncer.frame_count) + \"/\" + str(config.HOLD_FRAMES)", "", "        if runner.is_enabled() == True:", "            actions_text = \"Actions: ON  (press \" + config.TOGGLE_ACTIONS_KEY + \" to switch)\"", "            actions_color = (0, 255, 0)", "        else:", "            actions_text = \"Actions: OFF (press \" + config.TOGGLE_ACTIONS_KEY + \" to switch)\"", "            actions_color = (0, 0, 255)", "", "        draw_text(frame, gesture_text, 10, 30, (0, 255, 0))", "        draw_text(frame, holding_text, 10, 60, (0, 255, 255))", "        draw_text(frame, \"Last confirmed: \" + last_confirmed_text, 10, 90, (255, 255, 255))", "        draw_text(frame, actions_text, 10, 120, actions_color)", "", "        cv2.imshow(config.WINDOW_NAME, frame)", "", "        pressed_key = cv2.waitKey(1)", "        if pressed_key == ord(config.QUIT_KEY):", "            break", "        if pressed_key == ord(config.TOGGLE_ACTIONS_KEY):", "            runner.toggle_enabled()", "", "    tracker.release()", "    print(\"Gesture controller stopped.\")", "", "", "if __name__ == \"__main__\":", "    main()"];
+var LN = {"trk": [24, 25, 26, 27, 28, 29], "cls": [31, 32, 33, 34], "deb0": [36], "run0": [37], "cfg": [39], "cam": [42], "prn": [46, 47, 48], "lst": [50], "whl": [52], "read": [53], "nif": [55], "find": [59], "gdef": [61, 62], "hif": [64], "draw": [65], "feat": [66], "pred": [67], "mif": [69], "mset": [70], "deb": [72], "cif": [74], "mapif": [75], "actn": [76], "runl": [77], "lastl": [78], "lmif": [82], "gnone": [83], "gtext": [85], "hifc": [87], "hnone": [88], "htext": [90], "aif": [92], "aon": [93, 94], "aoff": [96, 97], "dt": [99, 100, 101, 102], "show": [104], "wait": [106], "qif": [107], "brk": [108], "tif": [109], "tcall": [110], "rel": [112], "pst": [113]};
+var code5 = new CodeView($('code5'), CODE5);
+var FR5 = [{ hand: false, pose: 'none' }, { hand: true, pose: 'relaxed', pd: 0.9, ml: 1.0 }, { hand: true, pose: 'weak', pd: 0.34, ml: 1.0 }, { hand: true, pose: 'pinch', pd: 0.10, ml: 1.0 },
+  { hand: true, pose: 'pinch', pd: 0.06, ml: 1.0, key: 't' }, { hand: true, pose: 'pinch', pd: 0.05, ml: 1.0 }, { hand: true, pose: 'open', pd: 0.9, ml: 1.5, key: 'q' }];
+function r2(v) { var s = String(Math.round(v * 100) / 100); return s.indexOf('.') < 0 ? s + '.0' : s; }
+function q5(v) { return v === null ? 'None' : "'" + v + "'"; }
+
+function buildFrames5() {
+  var H = 2, C = 1.5, MC = 0.5, S = { f: 0, pose: 'none', hand: false, stage: -1, lm: false, feat: false, label: null, conf: null, conf2: undefined, cand: null, count: 0, lock: 0, act: null, key: null, slide: 3, en: true, last: 'none',
+    texts: ['', '', '', ''], cols: ['#3ddc84', '#ffd54a', '#ffffff', '#3ddc84'], shown: false, ch: [] }, steps = [], fr, t;
+  function P(hl, stage, title, desc, calc, ch) { var c = {}, k; if (stage !== null) S.stage = stage; for (k in S) c[k] = S[k]; c.hl = hl; c.title = title; c.desc = desc; c.calc = calc; c.ch = ch || []; c.texts = S.texts.slice(); c.cols = S.cols.slice(); steps.push(c); }
+  var b = function (v) { return v ? 'True' : 'False'; }, A = LN;
+  P(A.trk, null, 'Create the HandTracker', 'The webcam is opened and MediaPipe is prepared. Every setting comes from <code>config.py</code>, so numbers are changed in one place.', 'tracker = HandTracker(...)');
+  P(A.cls, null, 'Create the GestureClassifier', 'It receives the two thresholds (pinch 0.4 and open 1.3) from Part 2.', 'classifier = GestureClassifier(0.4, 1.3)');
+  P(A.deb0, null, 'Create the Debouncer', 'It receives <code>HOLD_FRAMES</code> and <code>COOLDOWN_SECONDS</code> (Part 3).', 'debouncer = Debouncer(' + H + ', ' + fmt(C, 1) + ')', ['cand']);
+  P(A.run0, null, 'Create the ActionRunner', 'The key-pressing object (Part 4) starts switched <b>ON</b>.', 'runner = ActionRunner()    # actions_enabled = True');
+  P(A.cfg, null, 'Should we start switched off?', 'Only if <code>START_WITH_ACTIONS_ENABLED</code> is False. In this demo it is True, so the body is skipped.', 'START_WITH_ACTIONS_ENABLED == False  is  ' + hi('False'));
+  P(A.cam, null, 'Is the webcam open?', 'If it were not, the program would print an error and stop.', 'tracker.is_camera_open() == False  is  ' + hi('False'));
+  P(A.prn, null, 'Print instructions', 'The terminal tells you which keys switch actions and quit.', 'Press \'t\' ... / Press \'q\' ...');
+  P(A.lst, null, 'Prepare the "last confirmed" text', 'This variable remembers the last confirmed gesture for the screen.', 'last_confirmed_text = ' + hi('"none"'), ['last']);
+  P(A.whl, null, 'Start the loop', '<code>while True</code> repeats everything below, once per camera frame, until <code>break</code>.', 'one round = one frame');
+  for (var i = 0; i < FR5.length; i++) {
+    fr = FR5[i]; t = round4((i + 1) * 0.5); S.f = i + 1; S.pose = fr.pose; S.hand = fr.hand; S.lm = false; S.feat = false; S.act = null; S.key = null; S.conf2 = undefined; S.label = null; S.conf = null;
+    var n = i + 1, hl, pd, ml, same, conf2 = null;
+    P(A.read, 0, 'Frame ' + n + ': read the camera', 'One picture is taken and flipped like a mirror. Look at the left of the picture: ' + (fr.hand ? 'a hand is visible.' : '<b>no hand</b> is visible.'), 'frame = picture number ' + n + '  (t = ' + fmt(t, 1) + ' s)');
+    P(A.nif, null, 'Did the camera fail?', 'If the picture were <code>None</code> the loop would stop.', 'frame is None  is  ' + hi('False'));
+    S.lm = fr.hand;
+    P(A.find, 1, 'Find the hand landmarks', fr.hand ? 'MediaPipe finds the hand and returns <b>21 points</b>, each an (x, y) position (Part 1).' : 'MediaPipe finds no hand, so it returns <b>None</b>.', 'landmarks = ' + hi(fr.hand ? '21 points' : 'None'));
+    S.label = 'idle'; S.conf = 0;
+    P(A.gdef, null, 'Safe defaults', 'Before looking at the hand, the label is <code>"idle"</code> and the confidence is 0.0. If there is no hand, these values simply move on.', 'gesture_label = "idle"\nconfidence_score = 0.0', ['label', 'conf']);
+    P(A.hif, null, 'Is there a hand?', fr.hand ? 'Yes, so the next lines classify it.' : 'No, so the whole block is skipped and the defaults stay.', 'landmarks is not None  is  ' + hi(b(fr.hand)));
+    if (fr.hand) {
+      P(A.draw, null, 'Draw the skeleton', 'The 21 dots and the lines between them are painted onto the picture.', 'tracker.draw_hand(frame)');
+      S.feat = true;
+      P(A.feat, 2, 'Landmarks become 42 numbers', '<code>extract_features</code> moves the wrist to (0, 0) and divides by the palm size (Part 1), so the hand size and distance do not matter.', '21 points  \u2192  42 numbers');
+      pd = fr.pd; ml = fr.ml;
+      if (pd < 0.4) { S.label = 'pinch'; S.conf = 1 - pd / 0.4; hl = 'pinch_distance ' + fmt(pd, 2) + ' < 0.4  \u2192  pinch\nconfidence = 1 - ' + fmt(pd, 2) + ' / 0.4 = ' + hi(r2(S.conf)); }
+      else if (ml > 1.3) { S.label = 'open'; S.conf = Math.min(ml / 1.3, 1); hl = 'pinch_distance ' + fmt(pd, 2) + ' is not < 0.4\nmiddle finger length ' + fmt(ml, 1) + ' > 1.3  \u2192  open\nconfidence = ' + hi(r2(S.conf)); }
+      else { S.label = 'idle'; S.conf = 0.5; hl = 'pinch_distance ' + fmt(pd, 2) + ' is not < 0.4\nmiddle finger length ' + fmt(ml, 1) + ' is not > 1.3  \u2192  idle\nconfidence = ' + hi('0.5'); }
+      P(A.pred, 3, 'Classify the gesture (Part 2)', 'The classifier measures the thumb-index gap and the middle finger length, then returns a label and a confidence.', hl, ['label', 'conf']);
+      P(A.mif, null, 'Is the classifier unsure?', 'If the confidence is below <code>MIN_CONFIDENCE</code> (' + fmt(MC, 1) + '), the guess is thrown away.', r2(S.conf) + ' < ' + fmt(MC, 1) + '  is  ' + hi(b(S.conf < MC)));
+      if (S.conf < MC) { S.label = 'idle'; P(A.mset, null, 'Downgrade to idle', 'Too weak to trust, so the label becomes <code>"idle"</code>. The confidence number is kept, so the screen will still show it.', 'gesture_label = ' + hi('"idle"'), ['label']); }
+    }
+    same = S.label === S.cand;
+    if (t < S.lock) { S.cand = null; S.count = 0; conf2 = null; hl = esc(fmt(t, 1) + ' < ' + fmt(S.lock, 1)) + '  \u2192  still locked, ignored'; }
+    else if (S.label === 'idle') { S.cand = null; S.count = 0; hl = 'label is idle  \u2192  streak reset'; }
+    else { if (same) S.count += 1; else { S.cand = S.label; S.count = 1; } hl = esc(q5(S.cand)) + ': streak ' + S.count + ' of ' + H; if (S.count >= H) { conf2 = S.cand; S.lock = round4(t + C); S.cand = null; S.count = 0; hl += '\n' + hi('confirmed') + ', break until ' + fmt(S.lock, 1) + ' s'; } }
+    S.conf2 = conf2;
+    P(A.deb, 4, 'Debouncer.update(' + esc(q5(S.label)) + ') (Part 3)', 'This runs on <b>every</b> frame, even without a hand (an idle label resets the streak). It returns ' + (conf2 ? '<b>' + esc(q5(conf2)) + '</b>: the gesture was held long enough.' : '<b>None</b>: nothing confirmed yet.'), hl + '\nreturns  ' + hi(q5(conf2)), ['conf2', 'cand', 'count', 'lock']);
+    P(A.cif, null, 'Was a gesture confirmed?', 'Only a value other than None triggers an action.', 'confirmed_gesture is not None  is  ' + hi(b(conf2 !== null)));
+    if (conf2) {
+      P(A.mapif, null, 'Does this gesture have an action?', '<code>ACTION_MAP</code> translates a gesture name into an action name.', esc(q5(conf2)) + ' in ACTION_MAP  is  ' + hi('True'));
+      S.act = 'next_slide';
+      P(A.actn, 5, 'Look up the action name', 'The dictionary answers <b>next_slide</b>.', 'action_name = ' + hi('"next_slide"'));
+      if (S.en) { S.key = 'right'; S.slide = Math.min(5, S.slide + 1); }
+      P(A.runl, 5, 'runner.run("next_slide") (Part 4)', S.en ? 'The runner is switched on, so it presses the <b>right arrow</b> key. Watch the slide number in the window corner.' : 'The runner is switched OFF, so nothing is pressed.', S.en ? 'key pressed: ' + hi('right') + '  \u2192  slide ' + S.slide : 'actions_enabled is False  \u2192  nothing pressed');
+      S.last = conf2 + ' -> next_slide';
+      P(A.lastl, null, 'Remember it for the screen', 'The text is stored for the "Last confirmed" line.', 'last_confirmed_text = ' + hi('"' + S.last + '"'), ['last']);
+    }
+    S.texts[0] = fr.hand ? 'Gesture: ' + S.label + ' (' + r2(S.conf) + ')' : 'Gesture: no hand detected';
+    P(fr.hand ? [A.lmif[0], A.gtext[0]] : [A.lmif[0], A.gnone[0]], 6, 'Prepare the gesture text', fr.hand ? 'The label and confidence are turned into text.' : 'No hand, so the text says so.', 'gesture_text = ' + hi('"' + S.texts[0] + '"'));
+    S.texts[1] = S.cand === null ? 'Holding: -' : 'Holding: ' + S.cand + ' ' + S.count + '/' + H;
+    P(S.cand === null ? [A.hifc[0], A.hnone[0]] : [A.hifc[0], A.htext[0]], null, 'Prepare the holding text', 'This reads the Debouncer progress directly. After a confirmation the streak is reset, so it shows "-".', 'holding_text = ' + hi('"' + S.texts[1] + '"'));
+    S.texts[2] = 'Last confirmed: ' + S.last; S.texts[3] = S.en ? 'Actions: ON  (press t to switch)' : 'Actions: OFF (press t to switch)'; S.cols[3] = S.en ? '#3ddc84' : '#ff5a5a';
+    P(S.en ? [A.aif[0]].concat(A.aon) : [A.aif[0]].concat(A.aoff), null, 'Prepare the ON/OFF text', 'The text and its color depend on <code>runner.is_enabled()</code>. OpenCV colors are written (blue, green, red), so (0, 0, 255) is red.', 'actions_text = ' + hi('"' + S.texts[3] + '"'));
+    P(A.dt, 6, 'Write the four lines on the picture', '<code>draw_text</code> paints the four texts at heights 30, 60, 90 and 120.', '4 lines written onto the frame');
+    S.shown = true;
+    P(A.show, 6, 'Show the window', '<code>cv2.imshow</code> displays the picture. This is what you would see on your monitor.', 'window updated');
+    var kc = fr.key || null;
+    P(A.wait, null, 'Wait 1 ms for a key', kc ? 'You pressed <b>' + kc + '</b>.' : 'No key was pressed, so the result is -1.', 'pressed_key = ' + hi(kc ? 'ord("' + kc + '")' : '-1'));
+    P(A.qif, null, 'Is it the quit key?', kc === 'q' ? 'Yes!' : 'No.', 'pressed_key == ord("q")  is  ' + hi(b(kc === 'q')));
+    if (kc === 'q') {
+      P(A.brk, null, 'break: leave the loop', 'The loop ends.', 'break');
+      P(A.rel, null, 'Release the camera', 'The webcam and windows are closed.', 'tracker.release()');
+      P(A.pst, null, 'Print the goodbye', 'The program ends.', 'Gesture controller stopped.');
+      break;
+    }
+    P(A.tif, null, 'Is it the toggle key?', kc === 't' ? 'Yes, so the on/off switch will be flipped.' : 'No.', 'pressed_key == ord("t")  is  ' + hi(b(kc === 't')));
+    if (kc === 't') { S.en = !S.en; P(A.tcall, null, 'Flip the on/off switch', '<code>toggle_enabled()</code> (Part 4) turns the runner OFF. The next frames will show the red "Actions: OFF" line and no key could be pressed.', 'actions_enabled = ' + hi(b(S.en))); }
+  }
+  return steps;
+}
+
+function draw5(s) {
+  var o = '', i, bx = [['Camera', s.f ? 'frame ' + s.f : 'starting', s.hand ? 'hand seen' : 'no hand'], ['Landmarks', s.lm ? '21 points' : 'None', ''], ['Features', s.feat ? '42 numbers' : '\u2014', ''],
+    ['Classifier', s.label === null ? '\u2014' : s.label, s.conf === null ? '' : 'conf ' + r2(s.conf)], ['Debouncer', s.cand === null ? 'streak 0' : s.cand + ' ' + s.count + '/2', s.conf2 === undefined ? '' : 'out ' + q5(s.conf2)],
+    ['ActionRunner', s.act || '\u2014', s.key ? 'key ' + s.key : ''], ['Screen', 'slide ' + s.slide + '/5', s.en ? 'actions ON' : 'actions OFF']], T = { none: [], relaxed: [[92, 190], [112, 175], [130, 172], [148, 175], [166, 182]], weak: [[104, 182], [116, 164], [130, 156], [148, 160], [166, 170]],
+    pinch: [[118, 172], [120, 170], [130, 156], [148, 160], [164, 168]], open: [[84, 176], [106, 134], [130, 124], [154, 134], [174, 150]] }, tips = T[s.pose] || [];
+  o += '<rect class="pl" x="4" y="4" width="760" height="262" rx="4"/>';
+  for (i = 0; i < 7; i++) {
+    o += '<rect class="cnt" x="' + (14 + i * 106) + '" y="14" width="96" height="70" rx="6"' + (i === s.stage ? ' style="stroke:var(--signal);stroke-width:3"' : '') + '/>';
+    o += '<text class="ptitle" x="' + (62 + i * 106) + '" y="32" text-anchor="middle" style="font-size:11px">' + bx[i][0] + '</text><text class="cap" x="' + (62 + i * 106) + '" y="52" text-anchor="middle">' + esc(bx[i][1]) + '</text><text class="psub" x="' + (62 + i * 106) + '" y="70" text-anchor="middle">' + esc(bx[i][2]) + '</text>';
+    if (i < 6) o += '<text class="psub" x="' + (110 + i * 106) + '" y="52">\u25B8</text>';
+  }
+  o += '<text class="ptitle" x="14" y="106">What the camera sees</text><rect class="cnt" x="14" y="112" width="236" height="146" rx="6"/>';
+  if (!tips.length) o += '<text class="psub" x="132" y="190" text-anchor="middle">no hand in front of the camera</text>';
+  else {
+    o += '<rect x="118" y="214" width="24" height="40" rx="6" fill="var(--axis)" opacity=".5"/><circle cx="130" cy="214" r="26" fill="var(--axis)" opacity=".5"/>';
+    tips.forEach(function (p, k) { o += '<line x1="130" y1="214" x2="' + p[0] + '" y2="' + p[1] + '" stroke="var(--axis)" stroke-width="7" stroke-linecap="round"/>'; });
+    tips.forEach(function (p, k) { o += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="5" fill="' + ((s.pose === 'pinch' || s.pose === 'weak') && k < 2 ? 'var(--signal)' : 'var(--ink)') + '"/>'; });
+  }
+  o += '<text class="ptitle" x="270" y="106">What the window shows (cv2.imshow)</text><rect x="270" y="112" width="480" height="146" rx="6" fill="#14171c"/>';
+  if (s.shown) {
+    for (i = 0; i < 4; i++) o += '<text x="284" y="' + (136 + i * 26) + '" font-family="monospace" font-size="14" style="fill:' + s.cols[i] + '">' + esc(s.texts[i]) + '</text>';
+    o += '<text x="736" y="248" text-anchor="end" font-family="monospace" font-size="13" style="fill:#fff">Slide ' + s.slide + ' / 5</text>';
+  } else o += '<text x="510" y="190" text-anchor="middle" font-family="monospace" font-size="13" style="fill:#888">(window not opened yet)</text>';
+  $('svg5').innerHTML = o;
+}
+function render5(s) {
+  code5.set(s.hl, [], true);
+  $('title5').innerHTML = s.title; $('desc5').innerHTML = s.desc; $('calc5').innerHTML = s.calc;
+  var it = [['label', 'gesture_label', s.label === null ? '\u2014' : '"' + s.label + '"'], ['conf', 'confidence_score', s.conf === null ? '\u2014' : r2(s.conf)], ['conf2', 'confirmed_gesture', s.conf2 === undefined ? '\u2014' : q5(s.conf2)], ['last', 'last_confirmed_text', '"' + s.last + '"'],
+    ['cand', 'candidate_label', q5(s.cand)], ['count', 'frame_count', String(s.count)], ['lock', 'locked_until_time', fmt(s.lock, 1) + ' s']];
+  $('mem5').innerHTML = it.map(function (x) { return '<span class="chip' + (s.ch.indexOf(x[0]) >= 0 ? ' fresh' : '') + '"><i>' + x[1] + '</i><b>' + esc(x[2]) + '</b></span>'; }).join('');
+  draw5(s);
+}
+var stepper5 = makeStepper('p5', render5);
+$('p5-nextframe').addEventListener('click', function () {
+  var fr = stepper5.frames, i = stepper5.index, cur = fr[i].f;
+  while (i < fr.length - 1 && fr[i].f === cur) i += 1;
+  var sc = $('p5-scrub'); sc.value = String(i); sc.dispatchEvent(new Event('input'));
+});
+stepper5.setFrames(buildFrames5(), 'start');
+
+/* ============================================================
    Tabs and keyboard shortcuts
    ============================================================ */
 var active = 'part1';
 Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
   t.addEventListener('click', function () {
     active = t.getAttribute('data-tab');
-    stepper1.stop(); stepper2.stop(); stepper3.stop();
+    stepper1.stop(); stepper2.stop(); stepper3.stop(); stepper4.stop(); stepper5.stop();
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (o) { o.setAttribute('aria-selected', o === t ? 'true' : 'false'); });
     $('part1').hidden = active !== 'part1';
     $('part2').hidden = active !== 'part2';
     $('part3').hidden = active !== 'part3';
+    $('part4').hidden = active !== 'part4';
+    $('part5').hidden = active !== 'part5';
   });
 });
 document.addEventListener('keydown', function (e) {
   var tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
   if (tag === 'input' || tag === 'select' || tag === 'textarea' || (e.target && e.target.getAttribute && e.target.getAttribute('data-h') !== null)) return;
-  var stp = active === 'part1' ? stepper1 : (active === 'part2' ? stepper2 : stepper3);
+  var stp = active === 'part1' ? stepper1 : (active === 'part2' ? stepper2 : (active === 'part3' ? stepper3 : (active === 'part4' ? stepper4 : stepper5)));
   if (e.key === 'ArrowRight') { stp.next(); e.preventDefault(); }
   else if (e.key === 'ArrowLeft') { stp.prev(); e.preventDefault(); }
 });

@@ -32,10 +32,10 @@ class HandTracker:
         return frame
 
     def find_landmarks(self, frame):
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # Convert the frame from BGR to RGB color space for processing
         results = self.hands.process(rgb_frame) # Process the RGB frame to detect hands and extract landmarks
 
-        if results.multi_hand_landmarks is None:
+        if results.multi_hand_landmarks is None: # If no hands are detected, reset the latest hand and return None
             self.latest_hand = None
             return None
 
@@ -43,8 +43,8 @@ class HandTracker:
         self.latest_hand = first_hand
 
         landmark_list = []
-        for landmark in first_hand.landmark:
-            x_value = landmark.x
+        for landmark in first_hand.landmark: # Iterate through the landmarks of the detected hand and extract their x and y coordinates
+            x_value = landmark.x # Get the x-coordinate of the landmark
             y_value = landmark.y
             landmark_list.append((x_value, y_value))
 
