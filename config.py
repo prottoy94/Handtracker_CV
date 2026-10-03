@@ -5,6 +5,7 @@ TRACKING_CONFIDENCE = 0.7
 
 PINCH_DISTANCE_THRESHOLD = 0.4
 OPEN_DISTANCE_THRESHOLD = 1.3
+FIST_DISTANCE_THRESHOLD = 1.3
 MIN_CONFIDENCE = 0.5
 
 HOLD_FRAMES = 8
@@ -12,6 +13,7 @@ COOLDOWN_SECONDS = 1.5
 
 ACTION_MAP = {
     "pinch": "next_slide",
+    "fist": "previous_slide",
     "open": "toggle_mute",
 }
 

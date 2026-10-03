@@ -5,6 +5,8 @@ WRIST_INDEX = 0
 THUMB_TIP_INDEX = 4
 INDEX_TIP_INDEX = 8
 MIDDLE_TIP_INDEX = 12
+RING_TIP_INDEX = 16
+PINKY_TIP_INDEX = 20
 
 
 def get_point(feature_list, landmark_index):
@@ -16,15 +18,23 @@ def get_point(feature_list, landmark_index):
 
 
 class GestureClassifier:
-    def __init__(self, pinch_distance_threshold=0.4, open_distance_threshold=1.3):
+    def __init__(
+        self,
+        pinch_distance_threshold=0.4,
+        open_distance_threshold=1.3,
+        fist_distance_threshold=1.3,
+    ):
         self.pinch_distance_threshold = pinch_distance_threshold
         self.open_distance_threshold = open_distance_threshold
+        self.fist_distance_threshold = fist_distance_threshold
 
     def predict(self, feature_list):
         wrist_point = get_point(feature_list, WRIST_INDEX)
         thumb_tip_point = get_point(feature_list, THUMB_TIP_INDEX)
         index_tip_point = get_point(feature_list, INDEX_TIP_INDEX)
         middle_tip_point = get_point(feature_list, MIDDLE_TIP_INDEX)
+        ring_tip_point = get_point(feature_list, RING_TIP_INDEX)
+        pinky_tip_point = get_point(feature_list, PINKY_TIP_INDEX)
 
         pinch_distance = calculate_distance(thumb_tip_point, index_tip_point)
         middle_finger_length = calculate_distance(wrist_point, middle_tip_point)
@@ -32,6 +42,18 @@ class GestureClassifier:
         if pinch_distance < self.pinch_distance_threshold:
             gesture_label = "pinch"
             confidence_score = 1.0 - (pinch_distance / self.pinch_distance_threshold)
+            return gesture_label, confidence_score
+
+        finger_distances = [
+            calculate_distance(wrist_point, index_tip_point),
+            calculate_distance(wrist_point, middle_tip_point),
+            calculate_distance(wrist_point, ring_tip_point),
+            calculate_distance(wrist_point, pinky_tip_point),
+        ]
+
+        if max(finger_distances) < self.fist_distance_threshold:
+            gesture_label = "fist"
+            confidence_score = 1.0 - (max(finger_distances) / self.fist_distance_threshold)
             return gesture_label, confidence_score
 
         if middle_finger_length > self.open_distance_threshold:

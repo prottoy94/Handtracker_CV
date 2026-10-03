@@ -31,6 +31,7 @@ def main():
     classifier = GestureClassifier(
         config.PINCH_DISTANCE_THRESHOLD,
         config.OPEN_DISTANCE_THRESHOLD,
+        config.FIST_DISTANCE_THRESHOLD,
     )
 
     debouncer = Debouncer(config.HOLD_FRAMES, config.COOLDOWN_SECONDS)
